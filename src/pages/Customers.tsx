@@ -1,34 +1,82 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import type { Tables } from "@/integrations/supabase/types";
-
-type Customer = Tables<"customers">;
+import { useCreateCustomer, useCustomers, useDeleteCustomer, useUpdateCustomer } from "@/hooks/api/useCustomers";
+import type { Customer } from "@/services/customers";
 
 const Customers = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: customers = [],
+    isLoading,
+    isError,
+    error,
+  } = useCustomers();
+  const createCustomerMutation = useCreateCustomer();
+  const updateCustomerMutation = useUpdateCustomer();
+  const deleteCustomerMutation = useDeleteCustomer();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [form, setForm] = useState({ name: "", phone: "", address: "" });
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
-  const fetchCustomers = async () => {
-    const { data, error } = await supabase.from("customers").select("*").order("created_at", { ascending: false });
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else setCustomers(data || []);
-    setLoading(false);
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  const getErrorMessage = (err: unknown) => {
+    const message = err instanceof Error ? err.message : "Terjadi kesalahan.";
+    const lower = message.toLowerCase();
+    if (lower.includes("permission") || lower.includes("rls")) {
+      return "Anda tidak memiliki akses untuk data ini.";
+    }
+    return message;
   };
 
-  useEffect(() => { fetchCustomers(); }, []);
+  const filteredCustomers = customers.filter((c) => {
+    if (!search.trim()) return true;
+    const term = search.toLowerCase();
+    return (
+      c.name.toLowerCase().includes(term) ||
+      (c.phone ?? "").toLowerCase().includes(term) ||
+      (c.address ?? "").toLowerCase().includes(term)
+    );
+  });
+
+  const pageCount = Math.max(1, Math.ceil(filteredCustomers.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const paginatedCustomers = filteredCustomers.slice(
+    (currentPage - 1) * pageSize,
+    (currentPage - 1) * pageSize + pageSize,
+  );
 
   const openCreate = () => {
     setEditing(null);
@@ -44,34 +92,41 @@ const Customers = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editing) {
-      const { error } = await supabase.from("customers").update({
-        name: form.name, phone: form.phone || null, address: form.address || null,
-      }).eq("id", editing.id);
-      if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-      else toast({ title: "Berhasil", description: "Customer diperbarui." });
-    } else {
-      const { error } = await supabase.from("customers").insert({
-        name: form.name, phone: form.phone || null, address: form.address || null, sales_id: user!.id,
-      });
-      if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-      else toast({ title: "Berhasil", description: "Customer ditambahkan." });
+    try {
+      if (editing) {
+        await updateCustomerMutation.mutateAsync({
+          id: editing.id,
+          name: form.name,
+          phone: form.phone,
+          address: form.address,
+        });
+        toast({ title: "Berhasil", description: "Customer diperbarui." });
+      } else {
+        await createCustomerMutation.mutateAsync({
+          name: form.name,
+          phone: form.phone,
+          address: form.address,
+          salesId: user!.id,
+        });
+        toast({ title: "Berhasil", description: "Customer ditambahkan." });
+      }
+      setDialogOpen(false);
+    } catch (err) {
+      toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
     }
-    setDialogOpen(false);
-    fetchCustomers();
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Hapus customer ini?")) return;
-    const { error } = await supabase.from("customers").delete().eq("id", id);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else fetchCustomers();
   };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-foreground">Customers</h1>
+        <div className="flex items-center gap-3">
+          <Input
+            placeholder="Cari nama, telepon, atau alamat..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-64"
+          />
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Tambah</Button>
@@ -97,9 +152,21 @@ const Customers = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
-      {loading ? <p className="text-muted-foreground">Loading...</p> : (
+      {isLoading && <p className="text-muted-foreground">Loading...</p>}
+      {isError && (
+        <p className="text-sm text-destructive mb-4">
+          {getErrorMessage(error)}
+        </p>
+      )}
+
+      {!isLoading && !isError && (
+        <>
+          <p className="text-sm text-muted-foreground mb-2">
+            Menampilkan {paginatedCustomers.length} dari {filteredCustomers.length} customer.
+          </p>
         <Table>
           <TableHeader>
             <TableRow>
@@ -110,7 +177,7 @@ const Customers = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {customers.map((c) => (
+            {paginatedCustomers.map((c) => (
               <TableRow key={c.id}>
                 <TableCell className="font-medium">{c.name}</TableCell>
                 <TableCell>{c.phone || "-"}</TableCell>
@@ -118,16 +185,93 @@ const Customers = () => {
                 <TableCell>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(c.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Hapus customer?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tindakan ini tidak dapat dibatalkan. Data customer akan dihapus secara permanen.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Batal</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={async () => {
+                              try {
+                                await deleteCustomerMutation.mutateAsync(c.id);
+                                toast({ title: "Berhasil", description: "Customer dihapus." });
+                              } catch (err) {
+                                toast({
+                                  title: "Error",
+                                  description: getErrorMessage(err),
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                          >
+                            Hapus
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </TableCell>
               </TableRow>
             ))}
-            {customers.length === 0 && (
+            {filteredCustomers.length === 0 && (
               <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Belum ada customer.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
+          {pageCount > 1 && (
+            <div className="mt-4">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setPage((prev) => Math.max(1, prev - 1));
+                      }}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: pageCount }).map((_, index) => {
+                    const pageNumber = index + 1;
+                    return (
+                      <PaginationItem key={pageNumber}>
+                        <PaginationLink
+                          href="#"
+                          isActive={pageNumber === currentPage}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setPage(pageNumber);
+                          }}
+                        >
+                          {pageNumber}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setPage((prev) => Math.min(pageCount, prev + 1));
+                      }}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

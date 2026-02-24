@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,35 +6,76 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import type { Tables } from "@/integrations/supabase/types";
-
-type Order = Tables<"orders">;
-type Customer = Tables<"customers">;
+import {
+  useCreateOrder,
+  useDeleteOrder,
+  useOrderCustomers,
+  useOrders,
+  useUpdateOrder,
+} from "@/hooks/api/useOrders";
+import type { Order, Customer } from "@/services/orders";
 
 const Orders = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: orders = [],
+    isLoading,
+    isError,
+    error,
+  } = useOrders();
+  const {
+    data: customers = [],
+    isLoading: customersLoading,
+    isError: customersError,
+    error: customersErrorObj,
+  } = useOrderCustomers();
+  const createOrderMutation = useCreateOrder();
+  const updateOrderMutation = useUpdateOrder();
+  const deleteOrderMutation = useDeleteOrder();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Order | null>(null);
   const [form, setForm] = useState({ customer_id: "", status: "pending" });
+  const [statusFilter, setStatusFilter] = useState<string | "all">("all");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string | "all">("all");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
-  const fetchData = async () => {
-    const [ordersRes, customersRes] = await Promise.all([
-      supabase.from("orders").select("*").order("created_at", { ascending: false }),
-      supabase.from("customers").select("*"),
-    ]);
-    if (ordersRes.data) setOrders(ordersRes.data);
-    if (customersRes.data) setCustomers(customersRes.data);
-    setLoading(false);
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, paymentStatusFilter, search]);
+
+  const getErrorMessage = (err: unknown) => {
+    const message = err instanceof Error ? err.message : "Terjadi kesalahan.";
+    const lower = message.toLowerCase();
+    if (lower.includes("permission") || lower.includes("rls")) {
+      return "Anda tidak memiliki akses untuk data ini.";
+    }
+    return message;
   };
-
-  useEffect(() => { fetchData(); }, []);
 
   const customerName = (id: string | null) => customers.find((c) => c.id === id)?.name || "-";
 
@@ -53,29 +93,47 @@ const Orders = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editing) {
-      const { error } = await supabase.from("orders").update({
-        customer_id: form.customer_id || null, status: form.status,
-      }).eq("id", editing.id);
-      if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-      else toast({ title: "Berhasil", description: "Order diperbarui." });
-    } else {
-      const { error } = await supabase.from("orders").insert({
-        customer_id: form.customer_id || null, status: form.status, sales_id: user!.id,
-      });
-      if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-      else toast({ title: "Berhasil", description: "Order ditambahkan." });
+    try {
+      if (editing) {
+        await updateOrderMutation.mutateAsync({
+          id: editing.id,
+          customerId: form.customer_id || undefined,
+          status: form.status,
+        });
+        toast({ title: "Berhasil", description: "Order diperbarui." });
+      } else {
+        await createOrderMutation.mutateAsync({
+          customerId: form.customer_id || undefined,
+          status: form.status,
+          salesId: user!.id,
+        });
+        toast({ title: "Berhasil", description: "Order ditambahkan." });
+      }
+      setDialogOpen(false);
+    } catch (err) {
+      toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
     }
-    setDialogOpen(false);
-    fetchData();
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Hapus order ini?")) return;
-    const { error } = await supabase.from("orders").delete().eq("id", id);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else fetchData();
-  };
+  const filteredOrders = orders.filter((o) => {
+    if (statusFilter !== "all" && o.status !== statusFilter) return false;
+    if (paymentStatusFilter !== "all" && o.payment_status !== paymentStatusFilter) return false;
+    if (!search.trim()) return true;
+    const term = search.toLowerCase();
+    const customerNameValue = customerName(o.customer_id).toLowerCase();
+    return (
+      (o.order_number ?? "").toLowerCase().includes(term) ||
+      customerNameValue.includes(term) ||
+      (o.status ?? "").toLowerCase().includes(term)
+    );
+  });
+
+  const pageCount = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const paginatedOrders = filteredOrders.slice(
+    (currentPage - 1) * pageSize,
+    (currentPage - 1) * pageSize + pageSize,
+  );
 
   const statusColor = (s: string | null) => {
     if (s === "completed") return "default";
@@ -87,6 +145,38 @@ const Orders = () => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-foreground">Orders</h1>
+        <div className="flex items-center gap-3">
+          <Input
+            placeholder="Cari no. order, customer, atau status..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-64"
+          />
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Filter status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="processing">Processing</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={paymentStatusFilter}
+            onValueChange={(v) => setPaymentStatusFilter(v as typeof paymentStatusFilter)}
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Filter pembayaran" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua pembayaran</SelectItem>
+              <SelectItem value="unpaid">Unpaid</SelectItem>
+              <SelectItem value="partial">Partial</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+            </SelectContent>
+          </Select>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Tambah</Button>
@@ -122,9 +212,21 @@ const Orders = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
-      {loading ? <p className="text-muted-foreground">Loading...</p> : (
+      {(isLoading || customersLoading) && <p className="text-muted-foreground">Loading...</p>}
+      {(isError || customersError) && (
+        <p className="text-sm text-destructive mb-4">
+          {getErrorMessage(error || customersErrorObj)}
+        </p>
+      )}
+
+      {!isLoading && !customersLoading && !isError && !customersError && (
+        <>
+          <p className="text-sm text-muted-foreground mb-2">
+            Menampilkan {paginatedOrders.length} dari {filteredOrders.length} order.
+          </p>
         <Table>
           <TableHeader>
             <TableRow>
@@ -138,7 +240,7 @@ const Orders = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {orders.map((o) => (
+            {paginatedOrders.map((o) => (
               <TableRow key={o.id}>
                 <TableCell className="font-medium">{o.order_number}</TableCell>
                 <TableCell>{customerName(o.customer_id)}</TableCell>
@@ -149,16 +251,93 @@ const Orders = () => {
                 <TableCell>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" onClick={() => openEdit(o)}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(o.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Hapus order?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tindakan ini tidak dapat dibatalkan. Data order akan dihapus secara permanen.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Batal</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={async () => {
+                              try {
+                                await deleteOrderMutation.mutateAsync(o.id);
+                                toast({ title: "Berhasil", description: "Order dihapus." });
+                              } catch (err) {
+                                toast({
+                                  title: "Error",
+                                  description: getErrorMessage(err),
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                          >
+                            Hapus
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </TableCell>
               </TableRow>
             ))}
-            {orders.length === 0 && (
+            {filteredOrders.length === 0 && (
               <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Belum ada order.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
+          {pageCount > 1 && (
+            <div className="mt-4">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setPage((prev) => Math.max(1, prev - 1));
+                      }}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: pageCount }).map((_, index) => {
+                    const pageNumber = index + 1;
+                    return (
+                      <PaginationItem key={pageNumber}>
+                        <PaginationLink
+                          href="#"
+                          isActive={pageNumber === currentPage}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setPage(pageNumber);
+                          }}
+                        >
+                          {pageNumber}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setPage((prev) => Math.min(pageCount, prev + 1));
+                      }}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
