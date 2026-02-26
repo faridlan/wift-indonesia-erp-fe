@@ -30,7 +30,7 @@ const App = () => (
             <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
             <Route path="/dashboard/customers" element={<ProtectedRoute><DashboardLayout><Customers /></DashboardLayout></ProtectedRoute>} />
             <Route path="/dashboard/orders" element={<ProtectedRoute><DashboardLayout><Orders /></DashboardLayout></ProtectedRoute>} />
-            <Route path="/dashboard/order-items" element={<ProtectedRoute><DashboardLayout><OrderItems /></DashboardLayout></ProtectedRoute>} />
+            {/* <Route path="/dashboard/order-items" element={<ProtectedRoute><DashboardLayout><OrderItems /></DashboardLayout></ProtectedRoute>} /> */}
             <Route path="/dashboard/payments" element={<ProtectedRoute><DashboardLayout><Payments /></DashboardLayout></ProtectedRoute>} />
             <Route path="/dashboard/profile" element={<ProtectedRoute><DashboardLayout><Profile /></DashboardLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

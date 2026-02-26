@@ -9,7 +9,7 @@ const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: Home },
   { to: "/dashboard/customers", label: "Customers", icon: Users },
   { to: "/dashboard/orders", label: "Orders", icon: ShoppingCart },
-  { to: "/dashboard/order-items", label: "Order Items", icon: Package },
+  // { to: "/dashboard/order-items", label: "Order Items", icon: Package },
   { to: "/dashboard/payments", label: "Payments", icon: CreditCard },
   { to: "/dashboard/profile", label: "Profile", icon: User },
 ];

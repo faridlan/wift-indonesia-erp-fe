@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Tables } from "@/integrations/supabase/types";
@@ -14,14 +15,16 @@ interface InvoiceData {
 
 const COMPANY = {
   name: "WIFT INDONESIA",
-  tagline: "Solusi Digital Terpercaya",
-  address: "Jl. Contoh Alamat No. 123, Jakarta, Indonesia",
-  phone: "+62 812-3456-7890",
-  email: "info@wiftindonesia.com",
+  tagline: "Solusi Sergam Kantor Terpercaya",
+  address:
+    "Jl. Mangunreja Singaparna Kp. Kebon Kalapa, Kel.Cibalanarik, Kec. Tanjungjaya, Kab. Tasikmalaya",
+  phone: "0265-7543224",
+  instagram: "wiftindonesia_official",
+  email: "wijayafamily.wft@gmail.com",
+  website: "wiftindonesia.com",
 };
 
-const formatCurrency = (value: number) =>
-  "Rp " + value.toLocaleString("id-ID");
+const formatCurrency = (value: number) => "Rp " + value.toLocaleString("id-ID");
 
 const formatDate = (dateStr: string | null) => {
   if (!dateStr) return "-";
@@ -35,28 +38,31 @@ const formatDate = (dateStr: string | null) => {
 export function generateInvoicePDF({ order, items, customer }: InvoiceData) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 20;
 
-  // === Header background ===
+  // === 1. HEADER SECTION ===
   doc.setFillColor(30, 41, 59); // slate-800
   doc.rect(0, 0, pageWidth, 50, "F");
 
-  // Company name
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(22);
   doc.setFont("helvetica", "bold");
   doc.text(COMPANY.name, margin, 22);
 
-  // Tagline
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.text(COMPANY.tagline, margin, 30);
 
-  // Company contact (right side)
   doc.setFontSize(8);
-  doc.text(COMPANY.address, pageWidth - margin, 18, { align: "right" });
-  doc.text(`Tel: ${COMPANY.phone}`, pageWidth - margin, 24, { align: "right" });
-  doc.text(COMPANY.email, pageWidth - margin, 30, { align: "right" });
+  const headerRightX = pageWidth - margin;
+  doc.text(COMPANY.address, headerRightX, 18, { align: "right", maxWidth: 80 });
+  doc.text(`Tel: ${COMPANY.phone} | ${COMPANY.email}`, headerRightX, 28, {
+    align: "right",
+  });
+  doc.text(`${COMPANY.website} | IG: ${COMPANY.instagram}`, headerRightX, 33, {
+    align: "right",
+  });
 
   // INVOICE label
   doc.setFontSize(28);
@@ -148,11 +154,15 @@ export function generateInvoicePDF({ order, items, customer }: InvoiceData) {
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.text("Subtotal", totalsX, ty);
-  doc.text(formatCurrency(order.total_price || 0), pageWidth - margin, ty, { align: "right" });
+  doc.text(formatCurrency(order.total_price || 0), pageWidth - margin, ty, {
+    align: "right",
+  });
 
   ty += 8;
   doc.text("Sudah Dibayar", totalsX, ty);
-  doc.text(formatCurrency(order.amount_paid || 0), pageWidth - margin, ty, { align: "right" });
+  doc.text(formatCurrency(order.amount_paid || 0), pageWidth - margin, ty, {
+    align: "right",
+  });
 
   ty += 4;
   doc.setDrawColor(30, 41, 59);
@@ -164,7 +174,9 @@ export function generateInvoicePDF({ order, items, customer }: InvoiceData) {
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.text("Sisa Tagihan", totalsX, ty);
-  doc.text(formatCurrency(Math.max(0, sisa)), pageWidth - margin, ty, { align: "right" });
+  doc.text(formatCurrency(Math.max(0, sisa)), pageWidth - margin, ty, {
+    align: "right",
+  });
 
   // Payment status badge
   ty += 12;
@@ -178,19 +190,104 @@ export function generateInvoicePDF({ order, items, customer }: InvoiceData) {
   doc.setFillColor(...badgeColor);
   const statusText = payStatus.toUpperCase();
   const statusWidth = doc.getTextWidth(statusText) + 12;
-  doc.roundedRect(pageWidth - margin - statusWidth, ty - 5, statusWidth, 8, 2, 2, "F");
+  doc.roundedRect(
+    pageWidth - margin - statusWidth,
+    ty - 5,
+    statusWidth,
+    8,
+    2,
+    2,
+    "F",
+  );
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.text(statusText, pageWidth - margin - statusWidth / 2, ty, { align: "center" });
+  doc.text(statusText, pageWidth - margin - statusWidth / 2, ty, {
+    align: "center",
+  });
+
+  // === Bank Account Section (Left Side) ===
+  const bankY = finalY + 10;
+  doc.setTextColor(30, 41, 59);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text("Informasi Pembayaran:", margin, bankY);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  const banks = [
+    "BCA: 1234567890 a/n WIFT INDONESIA",
+    "Mandiri: 0987654321 a/n WIFT INDONESIA",
+    "BNI: 1122334455 a/n WIFT INDONESIA",
+    "BRI: 5544332211 a/n WIFT INDONESIA",
+  ];
+
+  banks.forEach((bank, i) => {
+    doc.text(bank, margin, bankY + 6 + i * 5);
+  });
+
+  // === Tanda Tangan Section ===
+  const sigY = ty + 20;
+  doc.setTextColor(30, 41, 59);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("Hormat Kami,", pageWidth - margin, sigY, { align: "right" });
+  doc.text("Manager WIFT Indonesia", pageWidth - margin, sigY + 5, {
+    align: "right",
+  });
+
+  try {
+    doc.addImage(
+      "/assets/ttd-manager.png",
+      "PNG",
+      pageWidth - margin - 45,
+      sigY + 8,
+      40,
+      20,
+    );
+
+    doc.addImage(
+      "/assets/stempel-wift.png",
+      "PNG",
+      pageWidth - margin - 55,
+      sigY + 5,
+      30,
+      30,
+    );
+  } catch (e) {
+    console.error("Gagal memuat gambar tanda tangan/stempel", e);
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.text("( Yusri Siti Aisyah., S.Ak )", pageWidth - margin - 25, sigY + 35, {
+    align: "center",
+  });
+
+  // === Watermark Lunas ===
+  if (sisa <= 0 || order.payment_status === "paid") {
+    doc.saveGraphicsState();
+    doc.setGState(new (doc as any).GState({ opacity: 0.1 })); // Transparansi rendah (10%)
+    doc.setFontSize(100);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(34, 197, 94); // Warna hijau lunas
+    doc.text("LUNAS", pageWidth / 2, pageHeight / 2 + 20, {
+      align: "center",
+      angle: 45,
+    });
+    doc.restoreGraphicsState();
+  }
 
   // === Footer ===
   doc.setTextColor(150, 150, 150);
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   const footerY = doc.internal.pageSize.getHeight() - 20;
-  doc.text("Terima kasih atas kepercayaan Anda.", pageWidth / 2, footerY, { align: "center" });
-  doc.text(`${COMPANY.name} — ${COMPANY.address}`, pageWidth / 2, footerY + 5, { align: "center" });
+  doc.text("Terima kasih atas kepercayaan Anda.", pageWidth / 2, footerY, {
+    align: "center",
+  });
+  doc.text(`${COMPANY.name} — ${COMPANY.address}`, pageWidth / 2, footerY + 5, {
+    align: "center",
+  });
 
   // Save
   const fileName = `Invoice-${order.order_number}.pdf`;
