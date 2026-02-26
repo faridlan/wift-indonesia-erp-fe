@@ -29,7 +29,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, X, Eye } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Eye, FileDown } from "lucide-react";
+import { generateInvoicePDF } from "@/lib/generate-invoice";
 import {
   useCreateOrder,
   useDeleteOrder,
@@ -114,6 +115,13 @@ const Orders = () => {
   const openDetail = (o: Order) => {
     setDetailOrder(o);
     setDetailDialogOpen(true);
+  };
+
+  const handleDownloadInvoice = (o: Order) => {
+    const orderItems = allOrderItems.filter((i) => i.order_id === o.id);
+    const customer = customers.find((c) => c.id === o.customer_id) || null;
+    generateInvoicePDF({ order: o, items: orderItems, customer });
+    toast({ title: "Berhasil", description: `Invoice #${o.order_number} berhasil diunduh.` });
   };
 
   const addItem = () => setItems([...items, emptyItem()]);
@@ -415,6 +423,9 @@ const Orders = () => {
                   </TableBody>
                 </Table>
               </div>
+              <Button className="w-full mt-2" variant="outline" onClick={() => handleDownloadInvoice(detailOrder)}>
+                <FileDown className="h-4 w-4 mr-2" />Download Invoice PDF
+              </Button>
             </div>
           )}
         </DialogContent>
@@ -454,6 +465,7 @@ const Orders = () => {
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openDetail(o)}><Eye className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDownloadInvoice(o)} title="Download Invoice"><FileDown className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => openEdit(o)}><Pencil className="h-4 w-4" /></Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
