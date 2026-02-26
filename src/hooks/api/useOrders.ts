@@ -31,7 +31,7 @@ export function useOrderCustomers() {
 export function useCreateOrder() {
   const queryClient = useQueryClient();
 
-  return useMutation<void, Error, OrderPayload>({
+  return useMutation<Order, Error, OrderPayload>({
     mutationFn: createOrder,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY });
