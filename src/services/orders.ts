@@ -36,16 +36,18 @@ export async function getOrderCustomers(): Promise<Customer[]> {
   return data ?? [];
 }
 
-export async function createOrder(payload: OrderPayload): Promise<void> {
-  const { error } = await supabase.from("orders").insert({
+export async function createOrder(payload: OrderPayload): Promise<Order> {
+  const { data, error } = await supabase.from("orders").insert({
     customer_id: payload.customerId || null,
     status: payload.status,
     sales_id: payload.salesId,
-  });
+  }).select().single();
 
   if (error) {
     throw error;
   }
+
+  return data;
 }
 
 export async function updateOrder(payload: OrderUpdatePayload): Promise<void> {
