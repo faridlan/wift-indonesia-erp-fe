@@ -29,8 +29,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, X, Eye, FileDown } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Eye, FileDown, Receipt } from "lucide-react";
 import { generateInvoicePDF } from "@/lib/generate-invoice";
+import { generateNotaPDF } from "@/lib/generate-nota";
 import {
   useCreateOrder,
   useDeleteOrder,
@@ -122,6 +123,13 @@ const Orders = () => {
     const customer = customers.find((c) => c.id === o.customer_id) || null;
     generateInvoicePDF({ order: o, items: orderItems, customer });
     toast({ title: "Berhasil", description: `Invoice #${o.order_number} berhasil diunduh.` });
+  };
+
+  const handleDownloadNota = (o: Order) => {
+    const orderItems = allOrderItems.filter((i) => i.order_id === o.id);
+    const customer = customers.find((c) => c.id === o.customer_id) || null;
+    generateNotaPDF({ order: o, items: orderItems, customer });
+    toast({ title: "Berhasil", description: `Nota #${o.order_number} berhasil diunduh.` });
   };
 
   const addItem = () => setItems([...items, emptyItem()]);
@@ -426,6 +434,11 @@ const Orders = () => {
               <Button className="w-full mt-2" variant="outline" onClick={() => handleDownloadInvoice(detailOrder)}>
                 <FileDown className="h-4 w-4 mr-2" />Download Invoice PDF
               </Button>
+              {detailOrder.payment_status === "paid" && (
+                <Button className="w-full mt-2" variant="outline" onClick={() => handleDownloadNota(detailOrder)}>
+                  <Receipt className="h-4 w-4 mr-2" />Download Nota Penjualan
+                </Button>
+              )}
             </div>
           )}
         </DialogContent>
@@ -464,8 +477,11 @@ const Orders = () => {
                   <TableCell><Badge variant={o.payment_status === "paid" ? "default" : "outline"}>{o.payment_status}</Badge></TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openDetail(o)}><Eye className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => openDetail(o)} title="Detail"><Eye className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => handleDownloadInvoice(o)} title="Download Invoice"><FileDown className="h-4 w-4" /></Button>
+                      {o.payment_status === "paid" && (
+                        <Button variant="ghost" size="icon" onClick={() => handleDownloadNota(o)} title="Download Nota"><Receipt className="h-4 w-4 text-green-600" /></Button>
+                      )}
                       <Button variant="ghost" size="icon" onClick={() => openEdit(o)}><Pencil className="h-4 w-4" /></Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>

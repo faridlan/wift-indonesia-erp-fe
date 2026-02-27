@@ -7,28 +7,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText } from "lucide-react";
+import { generateKwitansiPDF } from "@/lib/generate-kwitansi";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Payment = Tables<"payments">;
 type Order = Tables<"orders">;
+type Customer = Tables<"customers">;
 
 const Payments = () => {
   const { toast } = useToast();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Payment | null>(null);
   const [form, setForm] = useState({ order_id: "", amount: "", payment_method: "", notes: "" });
 
   const fetchData = async () => {
-    const [paymentsRes, ordersRes] = await Promise.all([
+    const [paymentsRes, ordersRes, customersRes] = await Promise.all([
       supabase.from("payments").select("*").order("created_at", { ascending: false }),
       supabase.from("orders").select("*"),
+      supabase.from("customers").select("*"),
     ]);
     if (paymentsRes.data) setPayments(paymentsRes.data);
     if (ordersRes.data) setOrders(ordersRes.data);
+    if (customersRes.data) setCustomers(customersRes.data);
     setLoading(false);
   };
 
@@ -77,6 +82,17 @@ const Payments = () => {
     const { error } = await supabase.from("payments").delete().eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else fetchData();
+  };
+
+  const handleDownloadKwitansi = (p: Payment) => {
+    const order = orders.find((o) => o.id === p.order_id);
+    if (!order) {
+      toast({ title: "Error", description: "Order tidak ditemukan.", variant: "destructive" });
+      return;
+    }
+    const customer = customers.find((c) => c.id === order.customer_id) || null;
+    generateKwitansiPDF({ payment: p, order, customer });
+    toast({ title: "Berhasil", description: "Kwitansi berhasil diunduh." });
   };
 
   return (
@@ -136,7 +152,8 @@ const Payments = () => {
               <TableHead>Jumlah</TableHead>
               <TableHead>Metode</TableHead>
               <TableHead>Catatan</TableHead>
-              <TableHead className="w-24">Aksi</TableHead>
+              <TableHead>Tanggal</TableHead>
+              <TableHead className="w-32">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -146,8 +163,10 @@ const Payments = () => {
                 <TableCell className="font-medium">{p.amount.toLocaleString("id-ID")}</TableCell>
                 <TableCell>{p.payment_method || "-"}</TableCell>
                 <TableCell>{p.notes || "-"}</TableCell>
+                <TableCell>{p.created_at ? new Date(p.created_at).toLocaleDateString("id-ID") : "-"}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => handleDownloadKwitansi(p)} title="Download Kwitansi"><FileText className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </div>
@@ -155,7 +174,7 @@ const Payments = () => {
               </TableRow>
             ))}
             {payments.length === 0 && (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Belum ada pembayaran.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Belum ada pembayaran.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
