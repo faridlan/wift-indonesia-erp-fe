@@ -14,8 +14,9 @@ interface NotaData {
 
 const COMPANY = {
   name: "WIFT INDONESIA",
-  tagline: "Solusi Sergam Kantor Terpercaya",
-  address: "Jl. Mangunreja Singaparna Kp. Kebon Kalapa, Kel.Cibalanarik, Kec. Tanjungjaya, Kab. Tasikmalaya",
+  tagline: "Solusi Seragam Kantor Terpercaya",
+  address:
+    "Jl. Mangunreja Singaparna Kp. Kebon Kalapa, Kel.Cibalanarik, Kec. Tanjungjaya, Kab. Tasikmalaya",
   phone: "0265-7543224",
   instagram: "wiftindonesia_official",
   email: "wijayafamily.wft@gmail.com",
@@ -43,20 +44,33 @@ export function generateNotaPDF({ order, items, customer }: NotaData) {
   doc.setFillColor(22, 163, 74); // green-600
   doc.rect(0, 0, pageWidth, 50, "F");
 
+  // / Logo Perusahaan - Dibuat lebih ke kiri (margin - 10 agar lebih mepet)
+  try {
+    doc.addImage("/assets/logo.png", "PNG", margin - 5, 12, 25, 25);
+  } catch (e) {
+    console.error("Gagal memuat logo perusahaan", e);
+  }
+
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(22);
   doc.setFont("helvetica", "bold");
-  doc.text(COMPANY.name, margin, 22);
+  // Teks digeser hanya 25mm dari margin agar tetap di kiri namun tidak tertutup logo
+  doc.text(COMPANY.name, margin + 25, 24);
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text(COMPANY.tagline, margin, 30);
+  doc.text(COMPANY.tagline, margin + 25, 32);
 
   doc.setFontSize(8);
   const headerRightX = pageWidth - margin;
-  doc.text(COMPANY.address, headerRightX, 18, { align: "right", maxWidth: 80 });
-  doc.text(`Tel: ${COMPANY.phone} | ${COMPANY.email}`, headerRightX, 28, { align: "right" });
-  doc.text(`${COMPANY.website} | IG: ${COMPANY.instagram}`, headerRightX, 33, { align: "right" });
+  // Alamat dibatasi maxWidth agar tidak memanjang ke kiri menimpa nama
+  doc.text(COMPANY.address, headerRightX, 18, { align: "right", maxWidth: 70 });
+  doc.text(`Tel: ${COMPANY.phone} | ${COMPANY.email}`, headerRightX, 28, {
+    align: "right",
+  });
+  doc.text(`${COMPANY.website} | IG: ${COMPANY.instagram}`, headerRightX, 33, {
+    align: "right",
+  });
 
   // NOTA PENJUALAN label
   doc.setFontSize(24);
@@ -136,15 +150,17 @@ export function generateNotaPDF({ order, items, customer }: NotaData) {
   const finalY = (doc as any).lastAutoTable?.finalY || y + 40;
   const totalsX = pageWidth - margin - 80;
 
-  let ty = finalY + 12;
+  const ty = finalY + 12;
   doc.setDrawColor(22, 163, 74);
   doc.setLineWidth(0.5);
-  doc.line(totalsX, ty - 4, pageWidth - margin, ty - 4);
+  doc.line(totalsX, ty - 7, pageWidth - margin, ty - 7);
 
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.text("TOTAL", totalsX, ty);
-  doc.text(formatCurrency(order.total_price || 0), pageWidth - margin, ty, { align: "right" });
+  doc.text(formatCurrency(order.total_price || 0), pageWidth - margin, ty, {
+    align: "right",
+  });
 
   // LUNAS watermark
   doc.saveGraphicsState();
@@ -153,7 +169,10 @@ export function generateNotaPDF({ order, items, customer }: NotaData) {
   doc.setFontSize(100);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(22, 163, 74);
-  doc.text("LUNAS", pageWidth / 2, pageHeight / 2 + 20, { align: "center", angle: 45 });
+  doc.text("LUNAS", pageWidth / 2, pageHeight / 2 + 20, {
+    align: "center",
+    angle: 45,
+  });
   doc.restoreGraphicsState();
 
   // === Tanda Tangan ===
@@ -162,25 +181,47 @@ export function generateNotaPDF({ order, items, customer }: NotaData) {
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.text("Hormat Kami,", pageWidth - margin, sigY, { align: "right" });
-  doc.text("Manager WIFT Indonesia", pageWidth - margin, sigY + 5, { align: "right" });
+  doc.text("Manager WIFT Indonesia", pageWidth - margin, sigY + 5, {
+    align: "right",
+  });
 
   try {
-    doc.addImage("/assets/ttd-manager.png", "PNG", pageWidth - margin - 45, sigY + 8, 40, 20);
-    doc.addImage("/assets/stempel-wift.png", "PNG", pageWidth - margin - 55, sigY + 5, 30, 30);
+    doc.addImage(
+      "/assets/ttd-manager.png",
+      "PNG",
+      pageWidth - margin - 45,
+      sigY + 8,
+      40,
+      20,
+    );
+    doc.addImage(
+      "/assets/stempel-wift.png",
+      "PNG",
+      pageWidth - margin - 55,
+      sigY + 5,
+      30,
+      30,
+    );
   } catch (e) {
     console.error("Gagal memuat gambar tanda tangan/stempel", e);
   }
 
   doc.setFont("helvetica", "bold");
-  doc.text("( Yusri Siti Aisyah., S.Ak )", pageWidth - margin - 25, sigY + 35, { align: "center" });
+  doc.text("( Yusri Siti Aisyah., S.Ak )", pageWidth - margin - 25, sigY + 35, {
+    align: "center",
+  });
 
   // === Footer ===
   doc.setTextColor(150, 150, 150);
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   const footerY = pageHeight - 20;
-  doc.text("Terima kasih atas kepercayaan Anda.", pageWidth / 2, footerY, { align: "center" });
-  doc.text(`${COMPANY.name} — ${COMPANY.address}`, pageWidth / 2, footerY + 5, { align: "center" });
+  doc.text("Terima kasih atas kepercayaan Anda.", pageWidth / 2, footerY, {
+    align: "center",
+  });
+  doc.text(`${COMPANY.name} — ${COMPANY.address}`, pageWidth / 2, footerY + 5, {
+    align: "center",
+  });
 
   doc.save(`Nota-${order.order_number}.pdf`);
 }

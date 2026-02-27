@@ -15,7 +15,7 @@ interface InvoiceData {
 
 const COMPANY = {
   name: "WIFT INDONESIA",
-  tagline: "Solusi Sergam Kantor Terpercaya",
+  tagline: "Solusi Seragam Kantor Terpercaya",
   address:
     "Jl. Mangunreja Singaparna Kp. Kebon Kalapa, Kel.Cibalanarik, Kec. Tanjungjaya, Kab. Tasikmalaya",
   phone: "0265-7543224",
@@ -45,18 +45,27 @@ export function generateInvoicePDF({ order, items, customer }: InvoiceData) {
   doc.setFillColor(30, 41, 59); // slate-800
   doc.rect(0, 0, pageWidth, 50, "F");
 
+  // Logo Perusahaan - Dibuat lebih ke kiri (margin - 10 agar lebih mepet)
+  try {
+    doc.addImage("/assets/logo.png", "PNG", margin - 5, 12, 25, 25);
+  } catch (e) {
+    console.error("Gagal memuat logo perusahaan", e);
+  }
+
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(22);
   doc.setFont("helvetica", "bold");
-  doc.text(COMPANY.name, margin, 22);
+  // Teks digeser hanya 25mm dari margin agar tetap di kiri namun tidak tertutup logo
+  doc.text(COMPANY.name, margin + 25, 24);
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text(COMPANY.tagline, margin, 30);
+  doc.text(COMPANY.tagline, margin + 25, 32);
 
   doc.setFontSize(8);
   const headerRightX = pageWidth - margin;
-  doc.text(COMPANY.address, headerRightX, 18, { align: "right", maxWidth: 80 });
+  // Alamat dibatasi maxWidth agar tidak memanjang ke kiri menimpa nama
+  doc.text(COMPANY.address, headerRightX, 18, { align: "right", maxWidth: 70 });
   doc.text(`Tel: ${COMPANY.phone} | ${COMPANY.email}`, headerRightX, 28, {
     align: "right",
   });
@@ -226,6 +235,19 @@ export function generateInvoicePDF({ order, items, customer }: InvoiceData) {
     doc.text(bank, margin, bankY + 6 + i * 5);
   });
 
+  // Tambahkan keterangan DP jika amount_paid masih 0
+  if ((order.amount_paid || 0) === 0) {
+    const minDp = Math.ceil((order.total_price || 0) * 0.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(239, 68, 68); // Red-500
+    doc.text(
+      `* Minimal DP 50%: ${formatCurrency(minDp)}`,
+      margin,
+      bankY + 6 + banks.length * 5 + 2,
+    );
+    doc.setTextColor(30, 41, 59); // Reset color
+  }
+
   // === Tanda Tangan Section ===
   const sigY = ty + 20;
   doc.setTextColor(30, 41, 59);
@@ -266,10 +288,10 @@ export function generateInvoicePDF({ order, items, customer }: InvoiceData) {
   // === Watermark Lunas ===
   if (sisa <= 0 || order.payment_status === "paid") {
     doc.saveGraphicsState();
-    doc.setGState(new (doc as any).GState({ opacity: 0.1 })); // Transparansi rendah (10%)
+    doc.setGState(new (doc as any).GState({ opacity: 0.1 }));
     doc.setFontSize(100);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(34, 197, 94); // Warna hijau lunas
+    doc.setTextColor(34, 197, 94);
     doc.text("LUNAS", pageWidth / 2, pageHeight / 2 + 20, {
       align: "center",
       angle: 45,
