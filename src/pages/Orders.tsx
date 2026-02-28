@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
@@ -29,7 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, X, Eye, FileDown, Receipt } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Eye, FileDown, Receipt, UserPlus } from "lucide-react";
 import { generateInvoicePDF } from "@/lib/generate-invoice";
 import { generateNotaPDF } from "@/lib/generate-nota";
 import {
@@ -40,7 +41,7 @@ import {
   useUpdateOrder,
 } from "@/hooks/api/useOrders";
 import { useOrderItems, useCreateOrderItem, useDeleteOrderItem, useUpdateOrderItem } from "@/hooks/api/useOrderItems";
-import { supabase } from "@/integrations/supabase/client";
+import { useCreateCustomer } from "@/hooks/api/useCustomers";
 import type { Order, Customer } from "@/services/orders";
 import type { OrderItem } from "@/services/order-items";
 
@@ -65,14 +66,20 @@ const Orders = () => {
   const createOrderItemMutation = useCreateOrderItem();
   const updateOrderItemMutation = useUpdateOrderItem();
   const deleteOrderItemMutation = useDeleteOrderItem();
+  const createCustomerMutation = useCreateCustomer();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
   const [editing, setEditing] = useState<Order | null>(null);
-  const [form, setForm] = useState({ customer_id: "", status: "pending" });
+  const [form, setForm] = useState({ customer_id: "", status: "pending", include_ppn: false });
   const [items, setItems] = useState<ItemForm[]>([emptyItem()]);
   const [submitting, setSubmitting] = useState(false);
+
+  // Inline customer creation
+  const [showNewCustomer, setShowNewCustomer] = useState(false);
+  const [newCustomerForm, setNewCustomerForm] = useState({ name: "", phone: "", address: "" });
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
 
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all");
@@ -93,14 +100,16 @@ const Orders = () => {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ customer_id: "", status: "pending" });
+    setForm({ customer_id: "", status: "pending", include_ppn: false });
     setItems([emptyItem()]);
+    setShowNewCustomer(false);
+    setNewCustomerForm({ name: "", phone: "", address: "" });
     setDialogOpen(true);
   };
 
   const openEdit = (o: Order) => {
     setEditing(o);
-    setForm({ customer_id: o.customer_id || "", status: o.status || "pending" });
+    setForm({ customer_id: o.customer_id || "", status: o.status || "pending", include_ppn: o.include_ppn ?? false });
     const existingItems = allOrderItems
       .filter((i) => i.order_id === o.id)
       .map((i) => ({
@@ -110,6 +119,7 @@ const Orders = () => {
         price_per_unit: String(i.price_per_unit),
       }));
     setItems(existingItems.length > 0 ? existingItems : [emptyItem()]);
+    setShowNewCustomer(false);
     setDialogOpen(true);
   };
 
@@ -143,6 +153,30 @@ const Orders = () => {
     setItems(items.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
   };
 
+  const handleCreateCustomer = async () => {
+    if (!newCustomerForm.name.trim()) {
+      toast({ title: "Error", description: "Nama customer wajib diisi.", variant: "destructive" });
+      return;
+    }
+    setCreatingCustomer(true);
+    try {
+      await createCustomerMutation.mutateAsync({
+        name: newCustomerForm.name,
+        phone: newCustomerForm.phone,
+        address: newCustomerForm.address,
+        salesId: user!.id,
+      });
+      toast({ title: "Berhasil", description: "Customer baru ditambahkan." });
+      setShowNewCustomer(false);
+      setNewCustomerForm({ name: "", phone: "", address: "" });
+      // The customer list will auto-refresh via query invalidation
+    } catch (err) {
+      toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
+    } finally {
+      setCreatingCustomer(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validItems = items.filter((i) => i.product_name.trim() && i.price_per_unit);
@@ -154,21 +188,19 @@ const Orders = () => {
     setSubmitting(true);
     try {
       if (editing) {
-        // Update order
         await updateOrderMutation.mutateAsync({
           id: editing.id,
           customerId: form.customer_id || undefined,
           status: form.status,
+          includePpn: form.include_ppn,
         });
 
-        // Delete removed items
         const existingIds = items.filter((i) => i.id).map((i) => i.id!);
         const toDelete = allOrderItems.filter((i) => i.order_id === editing.id && !existingIds.includes(i.id));
         for (const d of toDelete) {
           await deleteOrderItemMutation.mutateAsync(d.id);
         }
 
-        // Upsert items
         for (const item of validItems) {
           if (item.id) {
             await updateOrderItemMutation.mutateAsync({
@@ -190,14 +222,13 @@ const Orders = () => {
 
         toast({ title: "Berhasil", description: "Order dan item diperbarui." });
       } else {
-        // Create order first
         const newOrder = await createOrderMutation.mutateAsync({
           customerId: form.customer_id || undefined,
           status: form.status,
           salesId: user!.id,
+          includePpn: form.include_ppn,
         });
 
-        // Create items
         for (const item of validItems) {
           await createOrderItemMutation.mutateAsync({
             orderId: newOrder.id,
@@ -223,7 +254,9 @@ const Orders = () => {
     return qty * price;
   };
 
-  const totalAmount = items.reduce((sum, item) => sum + calcSubtotal(item), 0);
+  const subtotalAmount = items.reduce((sum, item) => sum + calcSubtotal(item), 0);
+  const ppnAmount = form.include_ppn ? Math.round(subtotalAmount * 11 / 100) : 0;
+  const totalAmount = subtotalAmount + ppnAmount;
 
   const filteredOrders = orders.filter((o) => {
     if (statusFilter !== "all" && o.status !== statusFilter) return false;
@@ -280,7 +313,6 @@ const Orders = () => {
             </SelectContent>
           </Select>
 
-          {/* Create/Edit Dialog */}
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Tambah Order</Button>
@@ -294,14 +326,19 @@ const Orders = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Customer</Label>
-                    <Select value={form.customer_id} onValueChange={(v) => setForm({ ...form, customer_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Pilih customer" /></SelectTrigger>
-                      <SelectContent>
-                        {customers.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex gap-2">
+                      <Select value={form.customer_id} onValueChange={(v) => setForm({ ...form, customer_id: v })}>
+                        <SelectTrigger className="flex-1"><SelectValue placeholder="Pilih customer" /></SelectTrigger>
+                        <SelectContent>
+                          {customers.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button type="button" variant="outline" size="icon" onClick={() => setShowNewCustomer(!showNewCustomer)} title="Tambah customer baru">
+                        <UserPlus className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label>Status</Label>
@@ -314,6 +351,61 @@ const Orders = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                {/* Inline new customer form */}
+                {showNewCustomer && (
+                  <Card>
+                    <CardContent className="pt-4 pb-3 px-4 space-y-3">
+                      <Label className="text-sm font-semibold">Customer Baru</Label>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Nama *</Label>
+                          <Input
+                            value={newCustomerForm.name}
+                            onChange={(e) => setNewCustomerForm({ ...newCustomerForm, name: e.target.value })}
+                            placeholder="Nama customer"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Telepon</Label>
+                          <Input
+                            value={newCustomerForm.phone}
+                            onChange={(e) => setNewCustomerForm({ ...newCustomerForm, phone: e.target.value })}
+                            placeholder="08xxx"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Alamat</Label>
+                          <Input
+                            value={newCustomerForm.address}
+                            onChange={(e) => setNewCustomerForm({ ...newCustomerForm, address: e.target.value })}
+                            placeholder="Alamat"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button type="button" size="sm" onClick={handleCreateCustomer} disabled={creatingCustomer}>
+                          {creatingCustomer ? "Menyimpan..." : "Simpan Customer"}
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setShowNewCustomer(false)}>
+                          Batal
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* PPN Toggle */}
+                <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                  <div>
+                    <Label className="text-sm font-medium">PPN 11%</Label>
+                    <p className="text-xs text-muted-foreground">Tambahkan pajak PPN 11% ke total harga</p>
+                  </div>
+                  <Switch
+                    checked={form.include_ppn}
+                    onCheckedChange={(checked) => setForm({ ...form, include_ppn: checked })}
+                  />
                 </div>
 
                 <Separator />
@@ -376,8 +468,12 @@ const Orders = () => {
                     </Card>
                   ))}
 
-                  <div className="flex justify-end text-sm font-semibold">
-                    Total: Rp {totalAmount.toLocaleString("id-ID")}
+                  <div className="space-y-1 text-sm text-right">
+                    <div className="text-muted-foreground">Subtotal: Rp {subtotalAmount.toLocaleString("id-ID")}</div>
+                    {form.include_ppn && (
+                      <div className="text-muted-foreground">PPN 11%: Rp {ppnAmount.toLocaleString("id-ID")}</div>
+                    )}
+                    <div className="font-semibold text-foreground">Total: Rp {totalAmount.toLocaleString("id-ID")}</div>
                   </div>
                 </div>
 
@@ -403,6 +499,7 @@ const Orders = () => {
                 <div><span className="text-muted-foreground">Status:</span> <Badge variant={statusColor(detailOrder.status)}>{detailOrder.status}</Badge></div>
                 <div><span className="text-muted-foreground">Total:</span> Rp {(detailOrder.total_price || 0).toLocaleString("id-ID")}</div>
                 <div><span className="text-muted-foreground">Bayar:</span> Rp {(detailOrder.amount_paid || 0).toLocaleString("id-ID")}</div>
+                <div><span className="text-muted-foreground">PPN:</span> {detailOrder.include_ppn ? "Ya (11%)" : "Tidak"}</div>
               </div>
               <Separator />
               <div>
@@ -460,6 +557,7 @@ const Orders = () => {
                 <TableHead>No.</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>PPN</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Bayar</TableHead>
                 <TableHead>Pembayaran</TableHead>
@@ -472,6 +570,7 @@ const Orders = () => {
                   <TableCell className="font-medium">{o.order_number}</TableCell>
                   <TableCell>{customerName(o.customer_id)}</TableCell>
                   <TableCell><Badge variant={statusColor(o.status)}>{o.status}</Badge></TableCell>
+                  <TableCell>{o.include_ppn ? <Badge variant="secondary">PPN</Badge> : "-"}</TableCell>
                   <TableCell>{(o.total_price || 0).toLocaleString("id-ID")}</TableCell>
                   <TableCell>{(o.amount_paid || 0).toLocaleString("id-ID")}</TableCell>
                   <TableCell><Badge variant={o.payment_status === "paid" ? "default" : "outline"}>{o.payment_status}</Badge></TableCell>
@@ -514,7 +613,7 @@ const Orders = () => {
                 </TableRow>
               ))}
               {filteredOrders.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Belum ada order.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Belum ada order.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
