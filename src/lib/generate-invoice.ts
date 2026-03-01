@@ -159,9 +159,9 @@ export function generateInvoicePDF({ order, items, customer }: InvoiceData) {
   const finalY = (doc as any).lastAutoTable?.finalY || y + 40;
   const totalsX = pageWidth - margin - 80;
 
-  const ppnPct = (order as any).ppn_percentage ?? (order.include_ppn ? 11 : 0);
   const subtotal = items.reduce((s, i) => s + i.quantity * i.price_per_unit, 0);
-  const ppnAmount = ppnPct > 0 ? Math.round(subtotal * ppnPct / 100) : 0;
+  const ppnPct = (order as any).ppn_percentage ?? (order.include_ppn ? 11 : 0);
+  const ppnAmount = (order as any).ppn_amount ?? (ppnPct > 0 ? Math.round(subtotal * ppnPct / 100) : 0);
 
   let ty = finalY + 10;
   doc.setFontSize(9);
