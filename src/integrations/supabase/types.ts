@@ -93,6 +93,7 @@ export type Database = {
           include_ppn: boolean
           order_number: number
           payment_status: string | null
+          ppn_percentage: number
           sales_id: string
           status: string | null
           total_price: number | null
@@ -105,6 +106,7 @@ export type Database = {
           include_ppn?: boolean
           order_number?: number
           payment_status?: string | null
+          ppn_percentage?: number
           sales_id: string
           status?: string | null
           total_price?: number | null
@@ -117,6 +119,7 @@ export type Database = {
           include_ppn?: boolean
           order_number?: number
           payment_status?: string | null
+          ppn_percentage?: number
           sales_id?: string
           status?: string | null
           total_price?: number | null

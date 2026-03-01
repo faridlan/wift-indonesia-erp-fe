@@ -8,14 +8,14 @@ export type OrderPayload = {
   customerId?: string;
   status: string;
   salesId: string;
-  includePpn?: boolean;
+  ppnPercentage?: number;
 };
 
 export type OrderUpdatePayload = {
   id: string;
   customerId?: string;
   status: string;
-  includePpn?: boolean;
+  ppnPercentage?: number;
 };
 
 export async function getOrders(): Promise<Order[]> {
@@ -43,7 +43,8 @@ export async function createOrder(payload: OrderPayload): Promise<Order> {
     customer_id: payload.customerId || null,
     status: payload.status,
     sales_id: payload.salesId,
-    include_ppn: payload.includePpn ?? false,
+    include_ppn: (payload.ppnPercentage ?? 0) > 0,
+    ppn_percentage: payload.ppnPercentage ?? 0,
   }).select().single();
 
   if (error) {
@@ -59,7 +60,8 @@ export async function updateOrder(payload: OrderUpdatePayload): Promise<void> {
     .update({
       customer_id: payload.customerId || null,
       status: payload.status,
-      include_ppn: payload.includePpn ?? false,
+      include_ppn: (payload.ppnPercentage ?? 0) > 0,
+      ppn_percentage: payload.ppnPercentage ?? 0,
     })
     .eq("id", payload.id);
 

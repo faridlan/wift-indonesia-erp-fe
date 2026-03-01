@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
@@ -72,7 +71,7 @@ const Orders = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
   const [editing, setEditing] = useState<Order | null>(null);
-  const [form, setForm] = useState({ customer_id: "", status: "pending", include_ppn: false });
+  const [form, setForm] = useState({ customer_id: "", status: "pending", ppn_percentage: "0" });
   const [items, setItems] = useState<ItemForm[]>([emptyItem()]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -100,7 +99,7 @@ const Orders = () => {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ customer_id: "", status: "pending", include_ppn: false });
+    setForm({ customer_id: "", status: "pending", ppn_percentage: "0" });
     setItems([emptyItem()]);
     setShowNewCustomer(false);
     setNewCustomerForm({ name: "", phone: "", address: "" });
@@ -109,7 +108,7 @@ const Orders = () => {
 
   const openEdit = (o: Order) => {
     setEditing(o);
-    setForm({ customer_id: o.customer_id || "", status: o.status || "pending", include_ppn: o.include_ppn ?? false });
+    setForm({ customer_id: o.customer_id || "", status: o.status || "pending", ppn_percentage: String((o as any).ppn_percentage ?? (o.include_ppn ? 11 : 0)) });
     const existingItems = allOrderItems
       .filter((i) => i.order_id === o.id)
       .map((i) => ({
@@ -192,7 +191,7 @@ const Orders = () => {
           id: editing.id,
           customerId: form.customer_id || undefined,
           status: form.status,
-          includePpn: form.include_ppn,
+          ppnPercentage: parseInt(form.ppn_percentage) || 0,
         });
 
         const existingIds = items.filter((i) => i.id).map((i) => i.id!);
@@ -226,7 +225,7 @@ const Orders = () => {
           customerId: form.customer_id || undefined,
           status: form.status,
           salesId: user!.id,
-          includePpn: form.include_ppn,
+          ppnPercentage: parseInt(form.ppn_percentage) || 0,
         });
 
         for (const item of validItems) {
@@ -255,7 +254,8 @@ const Orders = () => {
   };
 
   const subtotalAmount = items.reduce((sum, item) => sum + calcSubtotal(item), 0);
-  const ppnAmount = form.include_ppn ? Math.round(subtotalAmount * 11 / 100) : 0;
+  const ppnPct = parseInt(form.ppn_percentage) || 0;
+  const ppnAmount = ppnPct > 0 ? Math.round(subtotalAmount * ppnPct / 100) : 0;
   const totalAmount = subtotalAmount + ppnAmount;
 
   const filteredOrders = orders.filter((o) => {
@@ -396,15 +396,20 @@ const Orders = () => {
                   </Card>
                 )}
 
-                {/* PPN Toggle */}
-                <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <div>
-                    <Label className="text-sm font-medium">PPN 11%</Label>
-                    <p className="text-xs text-muted-foreground">Tambahkan pajak PPN 11% ke total harga</p>
+                {/* PPN Input */}
+                <div className="flex items-center gap-4 rounded-lg border border-border p-3">
+                  <div className="flex-1">
+                    <Label className="text-sm font-medium">PPN (%)</Label>
+                    <p className="text-xs text-muted-foreground">Masukkan persentase pajak (0 = tanpa PPN)</p>
                   </div>
-                  <Switch
-                    checked={form.include_ppn}
-                    onCheckedChange={(checked) => setForm({ ...form, include_ppn: checked })}
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={form.ppn_percentage}
+                    onChange={(e) => setForm({ ...form, ppn_percentage: e.target.value })}
+                    className="w-24 text-right"
+                    placeholder="0"
                   />
                 </div>
 
@@ -470,8 +475,8 @@ const Orders = () => {
 
                   <div className="space-y-1 text-sm text-right">
                     <div className="text-muted-foreground">Subtotal: Rp {subtotalAmount.toLocaleString("id-ID")}</div>
-                    {form.include_ppn && (
-                      <div className="text-muted-foreground">PPN 11%: Rp {ppnAmount.toLocaleString("id-ID")}</div>
+                    {ppnPct > 0 && (
+                      <div className="text-muted-foreground">PPN {ppnPct}%: Rp {ppnAmount.toLocaleString("id-ID")}</div>
                     )}
                     <div className="font-semibold text-foreground">Total: Rp {totalAmount.toLocaleString("id-ID")}</div>
                   </div>
@@ -499,7 +504,7 @@ const Orders = () => {
                 <div><span className="text-muted-foreground">Status:</span> <Badge variant={statusColor(detailOrder.status)}>{detailOrder.status}</Badge></div>
                 <div><span className="text-muted-foreground">Total:</span> Rp {(detailOrder.total_price || 0).toLocaleString("id-ID")}</div>
                 <div><span className="text-muted-foreground">Bayar:</span> Rp {(detailOrder.amount_paid || 0).toLocaleString("id-ID")}</div>
-                <div><span className="text-muted-foreground">PPN:</span> {detailOrder.include_ppn ? "Ya (11%)" : "Tidak"}</div>
+                <div><span className="text-muted-foreground">PPN:</span> {(detailOrder as any).ppn_percentage > 0 ? `Ya (${(detailOrder as any).ppn_percentage}%)` : "Tidak"}</div>
               </div>
               <Separator />
               <div>
@@ -570,7 +575,7 @@ const Orders = () => {
                   <TableCell className="font-medium">{o.order_number}</TableCell>
                   <TableCell>{customerName(o.customer_id)}</TableCell>
                   <TableCell><Badge variant={statusColor(o.status)}>{o.status}</Badge></TableCell>
-                  <TableCell>{o.include_ppn ? <Badge variant="secondary">PPN</Badge> : "-"}</TableCell>
+                  <TableCell>{(o as any).ppn_percentage > 0 ? <Badge variant="secondary">PPN {(o as any).ppn_percentage}%</Badge> : "-"}</TableCell>
                   <TableCell>{(o.total_price || 0).toLocaleString("id-ID")}</TableCell>
                   <TableCell>{(o.amount_paid || 0).toLocaleString("id-ID")}</TableCell>
                   <TableCell><Badge variant={o.payment_status === "paid" ? "default" : "outline"}>{o.payment_status}</Badge></TableCell>

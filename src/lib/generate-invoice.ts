@@ -159,13 +159,21 @@ export function generateInvoicePDF({ order, items, customer }: InvoiceData) {
   const finalY = (doc as any).lastAutoTable?.finalY || y + 40;
   const totalsX = pageWidth - margin - 80;
 
+  const ppnPct = (order as any).ppn_percentage ?? (order.include_ppn ? 11 : 0);
+  const subtotal = items.reduce((s, i) => s + i.quantity * i.price_per_unit, 0);
+  const ppnAmount = ppnPct > 0 ? Math.round(subtotal * ppnPct / 100) : 0;
+
   let ty = finalY + 10;
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.text("Subtotal", totalsX, ty);
-  doc.text(formatCurrency(order.total_price || 0), pageWidth - margin, ty, {
-    align: "right",
-  });
+  doc.text(formatCurrency(subtotal), pageWidth - margin, ty, { align: "right" });
+
+  if (ppnPct > 0) {
+    ty += 8;
+    doc.text(`PPN ${ppnPct}%`, totalsX, ty);
+    doc.text(formatCurrency(ppnAmount), pageWidth - margin, ty, { align: "right" });
+  }
 
   ty += 8;
   doc.text("Sudah Dibayar", totalsX, ty);
