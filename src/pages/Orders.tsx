@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
@@ -71,7 +72,7 @@ const Orders = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
   const [editing, setEditing] = useState<Order | null>(null);
-  const [form, setForm] = useState({ customer_id: "", status: "pending", ppn_percentage: "0" });
+  const [form, setForm] = useState({ customer_id: "", status: "pending", ppn_enabled: true, ppn_percentage: "11", ppn_custom: false });
   const [items, setItems] = useState<ItemForm[]>([emptyItem()]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -99,7 +100,7 @@ const Orders = () => {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ customer_id: "", status: "pending", ppn_percentage: "0" });
+    setForm({ customer_id: "", status: "pending", ppn_enabled: true, ppn_percentage: "11", ppn_custom: false });
     setItems([emptyItem()]);
     setShowNewCustomer(false);
     setNewCustomerForm({ name: "", phone: "", address: "" });
@@ -108,7 +109,10 @@ const Orders = () => {
 
   const openEdit = (o: Order) => {
     setEditing(o);
-    setForm({ customer_id: o.customer_id || "", status: o.status || "pending", ppn_percentage: String((o as any).ppn_percentage ?? (o.include_ppn ? 11 : 0)) });
+    const pct = (o as any).ppn_percentage ?? (o.include_ppn ? 11 : 0);
+    const enabled = pct > 0;
+    const isCustom = enabled && pct !== 11;
+    setForm({ customer_id: o.customer_id || "", status: o.status || "pending", ppn_enabled: enabled, ppn_percentage: String(pct > 0 ? pct : 11), ppn_custom: isCustom });
     const existingItems = allOrderItems
       .filter((i) => i.order_id === o.id)
       .map((i) => ({
@@ -191,7 +195,7 @@ const Orders = () => {
           id: editing.id,
           customerId: form.customer_id || undefined,
           status: form.status,
-          ppnPercentage: parseInt(form.ppn_percentage) || 0,
+          ppnPercentage: form.ppn_enabled ? (parseInt(form.ppn_percentage) || 0) : 0,
         });
 
         const existingIds = items.filter((i) => i.id).map((i) => i.id!);
@@ -225,7 +229,7 @@ const Orders = () => {
           customerId: form.customer_id || undefined,
           status: form.status,
           salesId: user!.id,
-          ppnPercentage: parseInt(form.ppn_percentage) || 0,
+          ppnPercentage: form.ppn_enabled ? (parseInt(form.ppn_percentage) || 0) : 0,
         });
 
         for (const item of validItems) {
@@ -254,7 +258,7 @@ const Orders = () => {
   };
 
   const subtotalAmount = items.reduce((sum, item) => sum + calcSubtotal(item), 0);
-  const ppnPct = parseInt(form.ppn_percentage) || 0;
+  const ppnPct = form.ppn_enabled ? (parseInt(form.ppn_percentage) || 0) : 0;
   const ppnAmount = ppnPct > 0 ? Math.round(subtotalAmount * ppnPct / 100) : 0;
   const totalAmount = subtotalAmount + ppnAmount;
 
@@ -396,21 +400,49 @@ const Orders = () => {
                   </Card>
                 )}
 
-                {/* PPN Input */}
-                <div className="flex items-center gap-4 rounded-lg border border-border p-3">
-                  <div className="flex-1">
-                    <Label className="text-sm font-medium">PPN (%)</Label>
-                    <p className="text-xs text-muted-foreground">Masukkan persentase pajak (0 = tanpa PPN)</p>
+                {/* PPN Section */}
+                <div className="space-y-3 rounded-lg border border-border p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-medium">PPN (Pajak)</Label>
+                      <p className="text-xs text-muted-foreground">Aktifkan untuk menambahkan pajak PPN</p>
+                    </div>
+                    <Switch
+                      checked={form.ppn_enabled}
+                      onCheckedChange={(checked) => setForm({ ...form, ppn_enabled: checked, ppn_custom: false, ppn_percentage: "11" })}
+                    />
                   </div>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={form.ppn_percentage}
-                    onChange={(e) => setForm({ ...form, ppn_percentage: e.target.value })}
-                    className="w-24 text-right"
-                    placeholder="0"
-                  />
+                  {form.ppn_enabled && (
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center gap-3">
+                        <Badge variant={!form.ppn_custom ? "default" : "outline"} className="cursor-pointer" onClick={() => setForm({ ...form, ppn_custom: false, ppn_percentage: "11" })}>
+                          11% (Default)
+                        </Badge>
+                        <Badge variant={form.ppn_custom ? "default" : "outline"} className="cursor-pointer" onClick={() => setForm({ ...form, ppn_custom: true, ppn_percentage: "" })}>
+                          Custom
+                        </Badge>
+                      </div>
+                      {form.ppn_custom && (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={form.ppn_percentage}
+                            onChange={(e) => setForm({ ...form, ppn_percentage: e.target.value })}
+                            className="w-24 text-right"
+                            placeholder="0"
+                          />
+                          <span className="text-sm text-muted-foreground">%</span>
+                        </div>
+                      )}
+                      {ppnPct > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          PPN {ppnPct}% = Rp {ppnAmount.toLocaleString("id-ID")}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <Separator />
@@ -504,7 +536,7 @@ const Orders = () => {
                 <div><span className="text-muted-foreground">Status:</span> <Badge variant={statusColor(detailOrder.status)}>{detailOrder.status}</Badge></div>
                 <div><span className="text-muted-foreground">Total:</span> Rp {(detailOrder.total_price || 0).toLocaleString("id-ID")}</div>
                 <div><span className="text-muted-foreground">Bayar:</span> Rp {(detailOrder.amount_paid || 0).toLocaleString("id-ID")}</div>
-                <div><span className="text-muted-foreground">PPN:</span> {(detailOrder as any).ppn_percentage > 0 ? `Ya (${(detailOrder as any).ppn_percentage}%)` : "Tidak"}</div>
+                <div><span className="text-muted-foreground">PPN:</span> {(detailOrder as any).ppn_percentage > 0 ? `Ya (${(detailOrder as any).ppn_percentage}%) — Rp ${((detailOrder as any).ppn_amount || 0).toLocaleString("id-ID")}` : "Tidak"}</div>
               </div>
               <Separator />
               <div>

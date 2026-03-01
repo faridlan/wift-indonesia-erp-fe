@@ -150,11 +150,28 @@ export function generateNotaPDF({ order, items, customer }: NotaData) {
   const finalY = (doc as any).lastAutoTable?.finalY || y + 40;
   const totalsX = pageWidth - margin - 80;
 
-  const ty = finalY + 12;
+  const subtotal = items.reduce((s, i) => s + i.quantity * i.price_per_unit, 0);
+  const ppnPct = (order as any).ppn_percentage ?? (order.include_ppn ? 11 : 0);
+  const ppnAmount = (order as any).ppn_amount ?? (ppnPct > 0 ? Math.round(subtotal * ppnPct / 100) : 0);
+
+  let ty = finalY + 10;
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("Subtotal", totalsX, ty);
+  doc.text(formatCurrency(subtotal), pageWidth - margin, ty, { align: "right" });
+
+  if (ppnPct > 0) {
+    ty += 8;
+    doc.text(`PPN ${ppnPct}%`, totalsX, ty);
+    doc.text(formatCurrency(ppnAmount), pageWidth - margin, ty, { align: "right" });
+  }
+
+  ty += 4;
   doc.setDrawColor(22, 163, 74);
   doc.setLineWidth(0.5);
-  doc.line(totalsX, ty - 7, pageWidth - margin, ty - 7);
+  doc.line(totalsX, ty, pageWidth - margin, ty);
 
+  ty += 8;
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.text("TOTAL", totalsX, ty);
