@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,10 +28,11 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useCreateCustomer, useCustomers, useDeleteCustomer, useUpdateCustomer } from "@/hooks/api/useCustomers";
+import { useSalesProfiles } from "@/hooks/api/useProfile";
 import type { Customer } from "@/services/customers";
 
 const Customers = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { toast } = useToast();
   const {
     data: customers = [],
@@ -38,15 +40,18 @@ const Customers = () => {
     isError,
     error,
   } = useCustomers();
+  const { data: salesProfiles = [] } = useSalesProfiles(role);
   const createCustomerMutation = useCreateCustomer();
   const updateCustomerMutation = useUpdateCustomer();
   const deleteCustomerMutation = useDeleteCustomer();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
-  const [form, setForm] = useState({ name: "", phone: "", address: "" });
+  const [form, setForm] = useState({ name: "", phone: "", address: "", salesId: "" });
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 10;
+
+  const isAdminOrSuperadmin = role === "admin" || role === "superadmin";
 
   useEffect(() => {
     setPage(1);
@@ -80,18 +85,23 @@ const Customers = () => {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: "", phone: "", address: "" });
+    setForm({ name: "", phone: "", address: "", salesId: "" });
     setDialogOpen(true);
   };
 
   const openEdit = (c: Customer) => {
     setEditing(c);
-    setForm({ name: c.name, phone: c.phone || "", address: c.address || "" });
+    setForm({ name: c.name, phone: c.phone || "", address: c.address || "", salesId: "" });
     setDialogOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const salesId = isAdminOrSuperadmin ? form.salesId : user!.id;
+    if (isAdminOrSuperadmin && !salesId) {
+      toast({ title: "Pilih sales", description: "Sales wajib dipilih.", variant: "destructive" });
+      return;
+    }
     try {
       if (editing) {
         await updateCustomerMutation.mutateAsync({
@@ -106,7 +116,7 @@ const Customers = () => {
           name: form.name,
           phone: form.phone,
           address: form.address,
-          salesId: user!.id,
+          salesId,
         });
         toast({ title: "Berhasil", description: "Customer ditambahkan." });
       }
@@ -136,6 +146,23 @@ const Customers = () => {
               <DialogTitle>{editing ? "Edit Customer" : "Tambah Customer"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {!editing && isAdminOrSuperadmin && (
+                <div className="space-y-2">
+                  <Label>Sales</Label>
+                  <Select value={form.salesId} onValueChange={(v) => setForm({ ...form, salesId: v })} required={isAdminOrSuperadmin}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih sales" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {salesProfiles.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.full_name || s.id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>Nama</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />

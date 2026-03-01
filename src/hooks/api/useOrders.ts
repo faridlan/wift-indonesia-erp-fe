@@ -12,7 +12,7 @@ import {
 } from "@/services/orders";
 
 const ORDERS_QUERY_KEY = ["orders"];
-const ORDER_CUSTOMERS_QUERY_KEY = ["order-customers"];
+const ORDER_CUSTOMERS_QUERY_KEY = ["customers"];
 
 export function useOrders() {
   return useQuery<Order[], Error>({

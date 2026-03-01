@@ -18,7 +18,10 @@ export type CustomerUpdatePayload = {
 };
 
 export async function getCustomers(): Promise<Customer[]> {
-  const { data, error } = await supabase.from("customers").select("*").order("created_at", { ascending: false });
+  const { data, error } = await supabase
+    .from("customers")
+    .select("*")
+    .order("created_at", { ascending: false });
 
   if (error) {
     throw error;
@@ -27,20 +30,30 @@ export async function getCustomers(): Promise<Customer[]> {
   return data ?? [];
 }
 
-export async function createCustomer(payload: CustomerPayload): Promise<void> {
-  const { error } = await supabase.from("customers").insert({
-    name: payload.name,
-    phone: payload.phone || null,
-    address: payload.address || null,
-    sales_id: payload.salesId,
-  });
+export async function createCustomer(
+  payload: CustomerPayload,
+): Promise<Customer> {
+  const { data, error } = await supabase
+    .from("customers")
+    .insert({
+      name: payload.name,
+      phone: payload.phone || null,
+      address: payload.address || null,
+      sales_id: payload.salesId,
+    })
+    .select() // PENTING: Mengambil data setelah insert
+    .single(); // PENTING: Mengambil satu object, bukan array
 
   if (error) {
     throw error;
   }
+
+  return data; // Sekarang me-return data Customer
 }
 
-export async function updateCustomer(payload: CustomerUpdatePayload): Promise<void> {
+export async function updateCustomer(
+  payload: CustomerUpdatePayload,
+): Promise<void> {
   const { error } = await supabase
     .from("customers")
     .update({
@@ -62,4 +75,3 @@ export async function deleteCustomer(id: string): Promise<void> {
     throw error;
   }
 }
-

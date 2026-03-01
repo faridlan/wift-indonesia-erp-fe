@@ -1,10 +1,19 @@
-
 -- Add ppn_percentage column (0 = no PPN, >0 = PPN percentage)
-ALTER TABLE public.orders ADD COLUMN ppn_percentage integer NOT NULL DEFAULT 0;
+ALTER TABLE public.orders
+ADD COLUMN ppn_percentage integer NOT NULL DEFAULT 0;
 
 -- Migrate existing data: set ppn_percentage = 11 where include_ppn was true
-UPDATE public.orders SET ppn_percentage = 11 WHERE include_ppn = true;
-UPDATE public.orders SET ppn_percentage = 0 WHERE include_ppn = false;
+UPDATE public.orders
+SET
+    ppn_percentage = 11
+WHERE
+    include_ppn = true;
+
+UPDATE public.orders
+SET
+    ppn_percentage = 0
+WHERE
+    include_ppn = false;
 
 -- Update calculate_total_price to use ppn_percentage
 CREATE OR REPLACE FUNCTION public.calculate_total_price()
@@ -65,6 +74,7 @@ $function$;
 
 -- Create trigger for ppn_percentage changes
 DROP TRIGGER IF EXISTS recalc_total_on_ppn_change ON public.orders;
+
 CREATE TRIGGER recalc_total_on_ppn_change
   BEFORE UPDATE OF ppn_percentage ON public.orders
   FOR EACH ROW

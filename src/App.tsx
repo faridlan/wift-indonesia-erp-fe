@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import SuperadminRoute from "@/components/SuperadminRoute";
 import DashboardLayout from "@/components/DashboardLayout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -13,6 +14,7 @@ import Orders from "./pages/Orders";
 import OrderItems from "./pages/OrderItems";
 import Payments from "./pages/Payments";
 import Profile from "./pages/Profile";
+import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +35,7 @@ const App = () => (
             {/* <Route path="/dashboard/order-items" element={<ProtectedRoute><DashboardLayout><OrderItems /></DashboardLayout></ProtectedRoute>} /> */}
             <Route path="/dashboard/payments" element={<ProtectedRoute><DashboardLayout><Payments /></DashboardLayout></ProtectedRoute>} />
             <Route path="/dashboard/profile" element={<ProtectedRoute><DashboardLayout><Profile /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/dashboard/users" element={<ProtectedRoute><SuperadminRoute><DashboardLayout><Users /></DashboardLayout></SuperadminRoute></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

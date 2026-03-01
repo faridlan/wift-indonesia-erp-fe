@@ -1,16 +1,23 @@
-
 -- Add ppn_amount column to store the calculated PPN nominal value
-ALTER TABLE public.orders ADD COLUMN ppn_amount bigint NOT NULL DEFAULT 0;
+ALTER TABLE public.orders
+ADD COLUMN ppn_amount bigint NOT NULL DEFAULT 0;
 
 -- Backfill ppn_amount for existing orders
 UPDATE public.orders o
-SET ppn_amount = CASE
-  WHEN o.ppn_percentage > 0 THEN (
-    SELECT COALESCE(SUM(oi.quantity * oi.price_per_unit) * o.ppn_percentage / 100, 0)
-    FROM public.order_items oi WHERE oi.order_id = o.id
-  )
-  ELSE 0
-END;
+SET
+    ppn_amount = CASE
+        WHEN o.ppn_percentage > 0 THEN (
+            SELECT COALESCE(
+                    SUM(
+                        oi.quantity * oi.price_per_unit
+                    ) * o.ppn_percentage / 100, 0
+                )
+            FROM public.order_items oi
+            WHERE
+                oi.order_id = o.id
+        )
+        ELSE 0
+    END;
 
 -- Update calculate_total_price to also store ppn_amount
 CREATE OR REPLACE FUNCTION public.calculate_total_price()

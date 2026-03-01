@@ -21,7 +21,8 @@ export function useCustomers() {
 export function useCreateCustomer() {
   const queryClient = useQueryClient();
 
-  return useMutation<void, Error, CustomerPayload>({
+  // Ubah void menjadi Customer
+  return useMutation<Customer, Error, CustomerPayload>({
     mutationFn: createCustomer,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CUSTOMERS_QUERY_KEY });
@@ -50,4 +51,3 @@ export function useDeleteCustomer() {
     },
   });
 }
-

@@ -21,3 +21,40 @@ export async function updateProfileFullName(userId: string, fullName: string): P
   }
 }
 
+export type SalesProfile = Pick<Profile, "id" | "full_name">;
+
+export async function getSalesProfiles(): Promise<SalesProfile[]> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .eq("role", "sales")
+    .order("full_name", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+export async function getAllProfiles(): Promise<Profile[]> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .order("full_name", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+export async function updateProfileRole(profileId: string, role: string): Promise<void> {
+  const { error } = await supabase.from("profiles").update({ role }).eq("id", profileId);
+
+  if (error) {
+    throw error;
+  }
+}
+

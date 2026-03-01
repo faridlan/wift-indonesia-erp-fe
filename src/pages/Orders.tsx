@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,8 +43,13 @@ import {
 } from "@/hooks/api/useOrders";
 import { useOrderItems, useCreateOrderItem, useDeleteOrderItem, useUpdateOrderItem } from "@/hooks/api/useOrderItems";
 import { useCreateCustomer } from "@/hooks/api/useCustomers";
+import { useSalesProfiles } from "@/hooks/api/useProfile";
 import type { Order, Customer } from "@/services/orders";
 import type { OrderItem } from "@/services/order-items";
+import { Check, ChevronsUpDown, Search } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils"; // Utilitas standar Shadcn
 
 type ItemForm = {
   id?: string;
@@ -55,10 +61,11 @@ type ItemForm = {
 const emptyItem = (): ItemForm => ({ product_name: "", quantity: "1", price_per_unit: "" });
 
 const Orders = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { toast } = useToast();
   const { data: orders = [], isLoading, isError, error } = useOrders();
   const { data: customers = [], isLoading: customersLoading, isError: customersError, error: customersErrorObj } = useOrderCustomers();
+  const { data: salesProfiles = [] } = useSalesProfiles(role);
   const { data: allOrderItems = [] } = useOrderItems();
   const createOrderMutation = useCreateOrder();
   const updateOrderMutation = useUpdateOrder();
@@ -72,9 +79,11 @@ const Orders = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
   const [editing, setEditing] = useState<Order | null>(null);
-  const [form, setForm] = useState({ customer_id: "", status: "pending", ppn_enabled: true, ppn_percentage: "11", ppn_custom: false });
+  const [form, setForm] = useState({ customer_id: "", status: "pending", ppn_enabled: true, ppn_percentage: "11", ppn_custom: false, salesId: "" });
   const [items, setItems] = useState<ItemForm[]>([emptyItem()]);
   const [submitting, setSubmitting] = useState(false);
+
+  const isAdminOrSuperadmin = role === "admin" || role === "superadmin";
 
   // Inline customer creation
   const [showNewCustomer, setShowNewCustomer] = useState(false);
@@ -87,7 +96,34 @@ const Orders = () => {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
-  useEffect(() => { setPage(1); }, [statusFilter, paymentStatusFilter, search]);
+  // 1. Tambahkan state untuk sinkronisasi instan
+  const [newlyCreatedCustomer, setNewlyCreatedCustomer] = useState<Customer | null>(null);
+
+  // 2. Gabungkan data server dengan data lokal (Prinsip Clean Architecture & DRY)
+  const memoizedCustomers = useMemo(() => {
+    // Jika tidak ada customer baru yang dibuat secara inline, gunakan data server langsung
+    if (!newlyCreatedCustomer) return customers;
+
+    // Cek apakah customer baru sudah masuk ke list utama (hasil background fetch React Query)
+    const exists = customers.find(c => String(c.id) === String(newlyCreatedCustomer.id));
+    if (exists) return customers;
+
+    // Jika belum ada di list server, tempelkan di paling atas agar dropdown tidak kosong
+    return [newlyCreatedCustomer, ...customers];
+  }, [customers, newlyCreatedCustomer]);
+
+  // 3. Untuk form order: admin/superadmin hanya lihat customer milik sales yang dipilih
+  const orderFormCustomers = useMemo(() => {
+    if (!isAdminOrSuperadmin) return memoizedCustomers;
+    if (!form.salesId) return [];
+    return memoizedCustomers.filter((c) => c.sales_id === form.salesId);
+  }, [isAdminOrSuperadmin, form.salesId, memoizedCustomers]);
+
+  // Reset customer_id saat admin/superadmin mengganti sales (hanya saat create, bukan edit)
+  useEffect(() => {
+    if (isAdminOrSuperadmin && !editing) setForm((prev) => ({ ...prev, customer_id: "" }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset when selected sales changes
+  }, [form.salesId]);
 
   const getErrorMessage = (err: unknown) => {
     const message = err instanceof Error ? err.message : "Terjadi kesalahan.";
@@ -96,11 +132,11 @@ const Orders = () => {
       : message;
   };
 
-  const customerName = (id: string | null) => customers.find((c) => c.id === id)?.name || "-";
+  const customerName = (id: string | null) => customers.find((c) => String(c.id) === String(id))?.name || "-";
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ customer_id: "", status: "pending", ppn_enabled: true, ppn_percentage: "11", ppn_custom: false });
+    setForm({ customer_id: "", status: "pending", ppn_enabled: true, ppn_percentage: "11", ppn_custom: false, salesId: "" });
     setItems([emptyItem()]);
     setShowNewCustomer(false);
     setNewCustomerForm({ name: "", phone: "", address: "" });
@@ -112,7 +148,14 @@ const Orders = () => {
     const pct = (o as any).ppn_percentage ?? (o.include_ppn ? 11 : 0);
     const enabled = pct > 0;
     const isCustom = enabled && pct !== 11;
-    setForm({ customer_id: o.customer_id || "", status: o.status || "pending", ppn_enabled: enabled, ppn_percentage: String(pct > 0 ? pct : 11), ppn_custom: isCustom });
+    setForm({
+      customer_id: o.customer_id ? String(o.customer_id) : "",
+      status: o.status || "pending",
+      ppn_enabled: enabled,
+      ppn_percentage: String(pct > 0 ? pct : 11),
+      ppn_custom: isCustom,
+      salesId: "",
+    });
     const existingItems = allOrderItems
       .filter((i) => i.order_id === o.id)
       .map((i) => ({
@@ -161,18 +204,36 @@ const Orders = () => {
       toast({ title: "Error", description: "Nama customer wajib diisi.", variant: "destructive" });
       return;
     }
+    const salesId = isAdminOrSuperadmin ? form.salesId : user!.id;
+    if (isAdminOrSuperadmin && !salesId) {
+      toast({ title: "Pilih sales", description: "Sales wajib dipilih untuk order ini.", variant: "destructive" });
+      return;
+    }
+
     setCreatingCustomer(true);
     try {
-      await createCustomerMutation.mutateAsync({
+      const newCust = await createCustomerMutation.mutateAsync({
         name: newCustomerForm.name,
         phone: newCustomerForm.phone,
         address: newCustomerForm.address,
-        salesId: user!.id,
+        salesId,
       });
-      toast({ title: "Berhasil", description: "Customer baru ditambahkan." });
-      setShowNewCustomer(false);
-      setNewCustomerForm({ name: "", phone: "", address: "" });
-      // The customer list will auto-refresh via query invalidation
+
+      if (newCust?.id) {
+        // 1. Simpan ke state sinkronisasi agar memoizedCustomers mengenalinya
+        setNewlyCreatedCustomer(newCust);
+
+        // 2. Isi field customer_id di form utama
+        setForm((prev) => ({ ...prev, customer_id: String(newCust.id) }));
+
+        // 3. TUTUP form input (otomatis memunculkan Dropdown lagi)
+        setShowNewCustomer(false);
+
+        // 4. Reset form customer baru
+        setNewCustomerForm({ name: "", phone: "", address: "" });
+
+        toast({ title: "Berhasil", description: `Pelanggan ${newCust.name} terpilih.` });
+      }
     } catch (err) {
       toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
     } finally {
@@ -185,6 +246,11 @@ const Orders = () => {
     const validItems = items.filter((i) => i.product_name.trim() && i.price_per_unit);
     if (validItems.length === 0) {
       toast({ title: "Error", description: "Tambahkan minimal 1 item produk.", variant: "destructive" });
+      return;
+    }
+    const salesId = isAdminOrSuperadmin ? form.salesId : user!.id;
+    if (!editing && isAdminOrSuperadmin && !salesId) {
+      toast({ title: "Pilih sales", description: "Sales wajib dipilih.", variant: "destructive" });
       return;
     }
 
@@ -228,7 +294,7 @@ const Orders = () => {
         const newOrder = await createOrderMutation.mutateAsync({
           customerId: form.customer_id || undefined,
           status: form.status,
-          salesId: user!.id,
+          salesId,
           ppnPercentage: form.ppn_enabled ? (parseInt(form.ppn_percentage) || 0) : 0,
         });
 
@@ -317,7 +383,13 @@ const Orders = () => {
             </SelectContent>
           </Select>
 
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog
+            open={dialogOpen}
+            onOpenChange={(open) => {
+              setDialogOpen(open);
+              if (!open) setNewlyCreatedCustomer(null);
+            }}
+          >
             <DialogTrigger asChild>
               <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Tambah Order</Button>
             </DialogTrigger>
@@ -326,23 +398,122 @@ const Orders = () => {
                 <DialogTitle>{editing ? "Edit Order" : "Tambah Order Baru"}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Sales (admin/superadmin only when creating) */}
+                {!editing && isAdminOrSuperadmin && (
+                  <div className="space-y-2">
+                    <Label>Sales</Label>
+                    <Select value={form.salesId} onValueChange={(v) => setForm((prev) => ({ ...prev, salesId: v }))} required>
+                      <SelectTrigger><SelectValue placeholder="Pilih sales" /></SelectTrigger>
+                      <SelectContent>
+                        {salesProfiles.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.full_name || s.id}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 {/* Order info */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Customer</Label>
-                    <div className="flex gap-2">
-                      <Select value={form.customer_id} onValueChange={(v) => setForm({ ...form, customer_id: v })}>
-                        <SelectTrigger className="flex-1"><SelectValue placeholder="Pilih customer" /></SelectTrigger>
-                        <SelectContent>
-                          {customers.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button type="button" variant="outline" size="icon" onClick={() => setShowNewCustomer(!showNewCustomer)} title="Tambah customer baru">
-                        <UserPlus className="h-4 w-4" />
+                    <div className="flex items-center justify-between">
+                      <Label>Customer</Label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setShowNewCustomer(!showNewCustomer)}
+                      >
+                        {showNewCustomer ? "Batal & Pilih Dropdown" : "Tambah Customer Baru"}
                       </Button>
                     </div>
+
+                    {showNewCustomer ? (
+                      /* JIKA showNewCustomer TRUE: Tampilkan Form Input */
+                      <div className="space-y-3 p-3 border rounded-md bg-muted/30">
+                        <div className="grid grid-cols-1 gap-2">
+                          <Input
+                            placeholder="Nama Customer (Wajib)"
+                            value={newCustomerForm.name}
+                            onChange={(e) => setNewCustomerForm({ ...newCustomerForm, name: e.target.value })}
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <Input
+                              placeholder="Telepon"
+                              value={newCustomerForm.phone}
+                              onChange={(e) => setNewCustomerForm({ ...newCustomerForm, phone: e.target.value })}
+                            />
+                            <Input
+                              placeholder="Alamat"
+                              value={newCustomerForm.address}
+                              onChange={(e) => setNewCustomerForm({ ...newCustomerForm, address: e.target.value })}
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="w-full"
+                            onClick={handleCreateCustomer}
+                            disabled={creatingCustomer}
+                          >
+                            {creatingCustomer ? "Menyimpan..." : "Simpan & Pilih"}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* JIKA showNewCustomer FALSE: Tampilkan Dropdown Biasa */
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className={cn(
+                              "w-full justify-between font-normal bg-background",
+                              !form.customer_id && "text-muted-foreground"
+                            )}
+                          >
+                            {form.customer_id
+                              ? orderFormCustomers.find((c) => String(c.id) === form.customer_id)?.name
+                              : isAdminOrSuperadmin && !form.salesId
+                                ? "Pilih sales terlebih dahulu"
+                                : "Cari nama customer..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Ketik nama pelanggan..." />
+                            <CommandList>
+                              <CommandEmpty>
+                                {isAdminOrSuperadmin && !form.salesId ? "Pilih sales terlebih dahulu." : "Customer tidak ditemukan."}
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {orderFormCustomers.map((c) => (
+                                  <CommandItem
+                                    key={c.id}
+                                    value={c.name} // CommandItem memfilter berdasarkan value ini
+                                    onSelect={() => {
+                                      setForm({ ...form, customer_id: String(c.id) });
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        form.customer_id === String(c.id) ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    <div className="flex flex-col">
+                                      <span>{c.name}</span>
+                                      {c.phone && <span className="text-[10px] text-muted-foreground">{c.phone}</span>}
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Status</Label>
@@ -358,47 +529,6 @@ const Orders = () => {
                 </div>
 
                 {/* Inline new customer form */}
-                {showNewCustomer && (
-                  <Card>
-                    <CardContent className="pt-4 pb-3 px-4 space-y-3">
-                      <Label className="text-sm font-semibold">Customer Baru</Label>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Nama *</Label>
-                          <Input
-                            value={newCustomerForm.name}
-                            onChange={(e) => setNewCustomerForm({ ...newCustomerForm, name: e.target.value })}
-                            placeholder="Nama customer"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Telepon</Label>
-                          <Input
-                            value={newCustomerForm.phone}
-                            onChange={(e) => setNewCustomerForm({ ...newCustomerForm, phone: e.target.value })}
-                            placeholder="08xxx"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Alamat</Label>
-                          <Input
-                            value={newCustomerForm.address}
-                            onChange={(e) => setNewCustomerForm({ ...newCustomerForm, address: e.target.value })}
-                            placeholder="Alamat"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button type="button" size="sm" onClick={handleCreateCustomer} disabled={creatingCustomer}>
-                          {creatingCustomer ? "Menyimpan..." : "Simpan Customer"}
-                        </Button>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setShowNewCustomer(false)}>
-                          Batal
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
 
                 {/* PPN Section */}
                 <div className="space-y-3 rounded-lg border border-border p-3">
