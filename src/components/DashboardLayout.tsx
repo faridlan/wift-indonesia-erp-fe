@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Users, ShoppingCart, Package, CreditCard, User, LogOut, Home, UserCog, CalendarRange } from "lucide-react";
+import { Users, ShoppingCart, Package, CreditCard, User, LogOut, Home, UserCog, CalendarRange, BarChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const baseNavItems = [
@@ -10,6 +10,7 @@ const baseNavItems = [
   { to: "/dashboard/customers", label: "Customers", icon: Users },
   { to: "/dashboard/orders", label: "Orders", icon: ShoppingCart },
   { to: "/dashboard/payments", label: "Payments", icon: CreditCard },
+  { to: "/dashboard/reports", label: "Reports", icon: BarChart },
   { to: "/dashboard/profile", label: "Profile", icon: User },
 ];
 
