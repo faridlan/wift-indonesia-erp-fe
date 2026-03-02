@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Users, ShoppingCart, Package, CreditCard, User, LogOut, Home, UserCog } from "lucide-react";
+import { Users, ShoppingCart, Package, CreditCard, User, LogOut, Home, UserCog, CalendarRange } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const baseNavItems = [
@@ -17,10 +17,18 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const { signOut, role } = useAuth();
   const location = useLocation();
 
-  const navItems =
-    role === "superadmin"
-      ? [...baseNavItems, { to: "/dashboard/users", label: "Users", icon: UserCog }]
-      : baseNavItems;
+  const adminItems = [
+    { to: "/dashboard/po-periods", label: "PO Periods", icon: CalendarRange },
+  ];
+  const superadminItems = [
+    { to: "/dashboard/users", label: "Users", icon: UserCog },
+  ];
+
+  const navItems = [
+    ...baseNavItems,
+    ...(role === "admin" || role === "superadmin" ? adminItems : []),
+    ...(role === "superadmin" ? superadminItems : []),
+  ];
 
   return (
     <div className="flex min-h-screen bg-background">
