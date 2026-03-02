@@ -44,6 +44,7 @@ import {
 import { useOrderItems, useCreateOrderItem, useDeleteOrderItem, useUpdateOrderItem } from "@/hooks/api/useOrderItems";
 import { useCreateCustomer } from "@/hooks/api/useCustomers";
 import { useSalesProfiles } from "@/hooks/api/useProfile";
+import { useActivePOPeriod } from "@/hooks/api/usePOPeriods";
 import type { Order, Customer } from "@/services/orders";
 import type { OrderItem } from "@/services/order-items";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
@@ -67,6 +68,7 @@ const Orders = () => {
   const { data: customers = [], isLoading: customersLoading, isError: customersError, error: customersErrorObj } = useOrderCustomers();
   const { data: salesProfiles = [] } = useSalesProfiles(role);
   const { data: allOrderItems = [] } = useOrderItems();
+  const { data: activePO } = useActivePOPeriod();
   const createOrderMutation = useCreateOrder();
   const updateOrderMutation = useUpdateOrder();
   const deleteOrderMutation = useDeleteOrder();
@@ -135,6 +137,10 @@ const Orders = () => {
   const customerName = (id: string | null) => customers.find((c) => String(c.id) === String(id))?.name || "-";
 
   const openCreate = () => {
+    if (!activePO) {
+      toast({ title: "PO Belum Dibuka", description: "Tidak ada PO period aktif. Hubungi admin untuk membuka PO.", variant: "destructive" });
+      return;
+    }
     setEditing(null);
     setForm({ customer_id: "", status: "pending", ppn_enabled: true, ppn_percentage: "11", ppn_custom: false, salesId: "" });
     setItems([emptyItem()]);
@@ -296,6 +302,7 @@ const Orders = () => {
           status: form.status,
           salesId,
           ppnPercentage: form.ppn_enabled ? (parseInt(form.ppn_percentage) || 0) : 0,
+          poPeriodId: activePO?.id,
         });
 
         for (const item of validItems) {
@@ -355,6 +362,20 @@ const Orders = () => {
 
   return (
     <div>
+      {/* PO Period Status Banner */}
+      {activePO ? (
+        <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-3 flex items-center justify-between">
+          <div className="text-sm">
+            <span className="font-semibold text-foreground">PO Aktif:</span>{" "}
+            <span className="text-muted-foreground">{activePO.name} ({activePO.start_date} s/d {activePO.end_date})</span>
+          </div>
+          <Badge variant="default">Open</Badge>
+        </div>
+      ) : (
+        <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          ⚠️ Tidak ada PO period aktif. Sales tidak dapat membuat order baru.
+        </div>
+      )}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-foreground">Orders</h1>
         <div className="flex items-center gap-3">
@@ -391,7 +412,7 @@ const Orders = () => {
             }}
           >
             <DialogTrigger asChild>
-              <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Tambah Order</Button>
+              <Button onClick={openCreate} disabled={!activePO}><Plus className="h-4 w-4 mr-2" />Tambah Order</Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>

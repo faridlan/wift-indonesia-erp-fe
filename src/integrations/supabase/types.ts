@@ -93,6 +93,7 @@ export type Database = {
           include_ppn: boolean
           order_number: number
           payment_status: string | null
+          po_period_id: string | null
           ppn_amount: number
           ppn_percentage: number
           sales_id: string
@@ -107,6 +108,7 @@ export type Database = {
           include_ppn?: boolean
           order_number?: number
           payment_status?: string | null
+          po_period_id?: string | null
           ppn_amount?: number
           ppn_percentage?: number
           sales_id: string
@@ -121,6 +123,7 @@ export type Database = {
           include_ppn?: boolean
           order_number?: number
           payment_status?: string | null
+          po_period_id?: string | null
           ppn_amount?: number
           ppn_percentage?: number
           sales_id?: string
@@ -133,6 +136,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_po_period_id_fkey"
+            columns: ["po_period_id"]
+            isOneToOne: false
+            referencedRelation: "po_periods"
             referencedColumns: ["id"]
           },
           {
@@ -181,6 +191,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      po_periods: {
+        Row: {
+          created_at: string | null
+          end_date: string
+          id: string
+          name: string
+          start_date: string
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          end_date: string
+          id?: string
+          name: string
+          start_date: string
+          status?: string
+        }
+        Update: {
+          created_at?: string | null
+          end_date?: string
+          id?: string
+          name?: string
+          start_date?: string
+          status?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {

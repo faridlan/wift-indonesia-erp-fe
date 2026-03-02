@@ -9,6 +9,7 @@ export type OrderPayload = {
   status: string;
   salesId: string;
   ppnPercentage?: number;
+  poPeriodId?: string;
 };
 
 export type OrderUpdatePayload = {
@@ -45,7 +46,8 @@ export async function createOrder(payload: OrderPayload): Promise<Order> {
     sales_id: payload.salesId,
     include_ppn: (payload.ppnPercentage ?? 0) > 0,
     ppn_percentage: payload.ppnPercentage ?? 0,
-  }).select().single();
+    po_period_id: payload.poPeriodId || null,
+  } as any).select().single();
 
   if (error) {
     throw error;
