@@ -50,7 +50,8 @@ import type { OrderItem } from "@/services/order-items";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils"; // Utilitas standar Shadcn
+import { cn, formatRupiah } from "@/lib/utils"; // Utilitas standar Shadcn
+import { supabase } from "@/integrations/supabase/client";
 
 type ItemForm = {
   id?: string;
@@ -98,6 +99,21 @@ const Orders = () => {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
+  // Payment 
+
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [selectedOrderForPayment, setSelectedOrderForPayment] = useState<Order | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [paymentNotes, setPaymentNotes] = useState("");
+
+  // 1. Helper to format number to Rupiah string
+  // const formatRupiah = (value: string) => {
+  //   if (!value) return "";
+  //   const numberString = value.replace(/[^,\d]/g, ""); // Remove non-digits
+  //   return numberString.replace(/\B(?=(\d{3})+(?!\d))/g, "."); // Add dots
+  // };
+
   // 1. Tambahkan state untuk sinkronisasi instan
   const [newlyCreatedCustomer, setNewlyCreatedCustomer] = useState<Customer | null>(null);
 
@@ -135,6 +151,7 @@ const Orders = () => {
   };
 
   const customerName = (id: string | null) => customers.find((c) => String(c.id) === String(id))?.name || "-";
+  const salesName = (id: string | null) => salesProfiles.find((s) => String(s.id) === String(id))?.full_name || "-";
 
   const openCreate = () => {
     if (!activePO) {
@@ -160,7 +177,7 @@ const Orders = () => {
       ppn_enabled: enabled,
       ppn_percentage: String(pct > 0 ? pct : 11),
       ppn_custom: isCustom,
-      salesId: "",
+      salesId: o.sales_id ? String(o.sales_id) : "",
     });
     const existingItems = allOrderItems
       .filter((i) => i.order_id === o.id)
@@ -420,10 +437,10 @@ const Orders = () => {
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Sales (admin/superadmin only when creating) */}
-                {!editing && isAdminOrSuperadmin && (
+                {isAdminOrSuperadmin && (
                   <div className="space-y-2">
                     <Label>Sales</Label>
-                    <Select value={form.salesId} onValueChange={(v) => setForm((prev) => ({ ...prev, salesId: v }))} required>
+                    <Select value={form.salesId} onValueChange={(v) => setForm((prev) => ({ ...prev, salesId: v }))} required disabled={!!editing}>
                       <SelectTrigger><SelectValue placeholder="Pilih sales" /></SelectTrigger>
                       <SelectContent>
                         {salesProfiles.map((s) => (
@@ -488,13 +505,15 @@ const Orders = () => {
                           <Button
                             variant="outline"
                             role="combobox"
+                            disabled={isAdminOrSuperadmin && !form.salesId} // Tambahan: kunci customer jika sales belum dipilih (saat input baru)
                             className={cn(
                               "w-full justify-between font-normal bg-background",
-                              !form.customer_id && "text-muted-foreground"
+                              !form.customer_id && "text-muted-foreground",
+                              editing && "border-dashed" // Opsional: beri style beda jika sedang edit
                             )}
                           >
                             {form.customer_id
-                              ? orderFormCustomers.find((c) => String(c.id) === form.customer_id)?.name
+                              ? orderFormCustomers.find((c) => String(c.id) === String(form.customer_id))?.name
                               : isAdminOrSuperadmin && !form.salesId
                                 ? "Pilih sales terlebih dahulu"
                                 : "Cari nama customer..."}
@@ -506,7 +525,9 @@ const Orders = () => {
                             <CommandInput placeholder="Ketik nama pelanggan..." />
                             <CommandList>
                               <CommandEmpty>
-                                {isAdminOrSuperadmin && !form.salesId ? "Pilih sales terlebih dahulu." : "Customer tidak ditemukan."}
+                                {isAdminOrSuperadmin && !form.salesId && !editing
+                                  ? "Pilih sales terlebih dahulu."
+                                  : "Customer tidak ditemukan."}
                               </CommandEmpty>
                               <CommandGroup>
                                 {orderFormCustomers.map((c) => (
@@ -632,14 +653,22 @@ const Orders = () => {
                           </div>
                           <div className="col-span-3 space-y-1">
                             <Label className="text-xs">Harga/Unit</Label>
-                            <Input
-                              type="number"
-                              min="0"
-                              value={item.price_per_unit}
-                              onChange={(e) => updateItem(index, "price_per_unit", e.target.value)}
-                              placeholder="0"
-                              required
-                            />
+                            <div className="relative">
+                              {/* Prefix Rp untuk UX yang lebih baik */}
+                              <span className="absolute left-3 top-2.5 text-xs text-muted-foreground">Rp</span>
+                              <Input
+                                type="text" // Berubah dari number ke text
+                                className="pl-8" // Padding left agar teks tidak bertumpuk dengan 'Rp'
+                                value={formatRupiah(String(item.price_per_unit))} // Format saat ditampilkan
+                                onChange={(e) => {
+                                  // Ambil hanya angkanya saja sebelum disimpan ke state
+                                  const rawValue = e.target.value.replace(/\./g, "");
+                                  updateItem(index, "price_per_unit", rawValue);
+                                }}
+                                placeholder="0"
+                                required
+                              />
+                            </div>
                           </div>
                           <div className="col-span-1 text-right text-sm font-medium text-muted-foreground pb-2">
                             {calcSubtotal(item).toLocaleString("id-ID")}
@@ -684,6 +713,7 @@ const Orders = () => {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div><span className="text-muted-foreground">Customer:</span> {customerName(detailOrder.customer_id)}</div>
+                <div><span className="text-muted-foreground">Sales:</span> {salesName(detailOrder.sales_id)}</div>
                 <div><span className="text-muted-foreground">Status:</span> <Badge variant={statusColor(detailOrder.status)}>{detailOrder.status}</Badge></div>
                 <div><span className="text-muted-foreground">Total:</span> Rp {(detailOrder.total_price || 0).toLocaleString("id-ID")}</div>
                 <div><span className="text-muted-foreground">Bayar:</span> Rp {(detailOrder.amount_paid || 0).toLocaleString("id-ID")}</div>
@@ -729,6 +759,98 @@ const Orders = () => {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Input Pembayaran #{selectedOrderForPayment?.order_number}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="rounded-lg bg-muted p-3 space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span>Total Tagihan:</span>
+                <span>Rp {selectedOrderForPayment?.total_price?.toLocaleString("id-ID")}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Sudah Dibayar:</span>
+                <span className="text-emerald-600">Rp {selectedOrderForPayment?.amount_paid?.toLocaleString("id-ID")}</span>
+              </div>
+              <Separator className="my-1" />
+              <div className="flex justify-between font-bold">
+                <span>Sisa Tagihan:</span>
+                <span className="text-destructive">
+                  Rp {((selectedOrderForPayment?.total_price || 0) - (selectedOrderForPayment?.amount_paid || 0)).toLocaleString("id-ID")}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Nominal Bayar</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 font-medium">Rp</span>
+                <Input
+                  type="text" // Change to text for formatting
+                  className="pl-10 font-mono"
+                  value={formatRupiah(paymentAmount)} // View formatted
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\./g, ""); // Remove dots
+                    if (/^\d*$/.test(raw)) { // Only allow digits
+                      setPaymentAmount(raw); // Store raw number string
+                    }
+                  }}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Metode</Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="transfer">Transfer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Catatan</Label>
+              <Input
+                placeholder="Contoh: DP Kemeja, Pelunasan Seragam"
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+              />
+            </div>
+
+          </div>
+
+          <Button
+            className="w-full"
+            onClick={async () => {
+              // Logic: 1. Insert to 'payments' table, 2. Supabase Trigger or manual update to 'orders' amount_paid
+              const { error } = await supabase.from("payments").insert({
+                order_id: selectedOrderForPayment?.id,
+                amount: parseInt(paymentAmount),
+                payment_method: paymentMethod,
+                notes: paymentNotes,
+              });
+
+              if (error) {
+                toast({ title: "Error", description: error.message, variant: "destructive" });
+              } else {
+                toast({ title: "Berhasil", description: "Pembayaran dicatat." });
+                setPaymentDialogOpen(false);
+                // Refresh data
+                // If you use React Query, use queryClient.invalidateQueries(['orders'])
+              }
+            }}
+          >
+            Konfirmasi Pembayaran
+          </Button>
+        </DialogContent>
+      </Dialog>
+
       {(isLoading || customersLoading) && <p className="text-muted-foreground">Loading...</p>}
       {(isError || customersError) && (
         <p className="text-sm text-destructive mb-4">{getErrorMessage(error || customersErrorObj)}</p>
@@ -743,6 +865,7 @@ const Orders = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>No.</TableHead>
+                <TableHead>Sales</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>PPN</TableHead>
@@ -756,15 +879,34 @@ const Orders = () => {
               {paginatedOrders.map((o) => (
                 <TableRow key={o.id}>
                   <TableCell className="font-medium">{o.order_number}</TableCell>
+                  <TableCell>{salesName(o.sales_id)}</TableCell>
                   <TableCell>{customerName(o.customer_id)}</TableCell>
                   <TableCell><Badge variant={statusColor(o.status)}>{o.status}</Badge></TableCell>
                   <TableCell>{(o as any).ppn_percentage > 0 ? <Badge variant="secondary">PPN {(o as any).ppn_percentage}%</Badge> : "-"}</TableCell>
-                  <TableCell>{(o.total_price || 0).toLocaleString("id-ID")}</TableCell>
-                  <TableCell>{(o.amount_paid || 0).toLocaleString("id-ID")}</TableCell>
+                  <TableCell>Rp {(o.total_price || 0).toLocaleString("id-ID")}</TableCell>
+                  <TableCell>Rp {(o.amount_paid || 0).toLocaleString("id-ID")}</TableCell>
                   <TableCell><Badge variant={o.payment_status === "paid" ? "default" : "outline"}>{o.payment_status}</Badge></TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openDetail(o)} title="Detail"><Eye className="h-4 w-4" /></Button>
+                      <div className="flex gap-1">
+                        {/* NEW: Payment Button */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-emerald-600 hover:text-emerald-700"
+                          onClick={() => {
+                            setSelectedOrderForPayment(o);
+                            setPaymentAmount(String((o.total_price || 0) - (o.amount_paid || 0))); // Default to remaining balance
+                            setPaymentDialogOpen(true);
+                          }}
+                          title="Input Pembayaran"
+                        >
+                          <Receipt className="h-4 w-4" />
+                        </Button>
+
+                        <Button variant="ghost" size="icon" onClick={() => openDetail(o)}><Eye className="h-4 w-4" /></Button>
+                        {/* ... other buttons ... */}
+                      </div>
                       <Button variant="ghost" size="icon" onClick={() => handleDownloadInvoice(o)} title="Download Invoice"><FileDown className="h-4 w-4" /></Button>
                       {o.payment_status === "paid" && (
                         <Button variant="ghost" size="icon" onClick={() => handleDownloadNota(o)} title="Download Nota"><Receipt className="h-4 w-4 text-green-600" /></Button>
