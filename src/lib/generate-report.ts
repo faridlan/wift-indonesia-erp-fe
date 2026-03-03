@@ -77,7 +77,7 @@ export function generateReportPDF({ title, subtitle, rows, salesName }: ReportPD
     String(i + 1),
     r.label,
     String(r.totalOrders),
-    r.totalPcs.toLocaleString("id-ID"),
+    r.totalPcs.toLocaleString("id-ID") + " pcs",
     formatCurrency(r.totalRevenue),
   ]);
 
@@ -85,11 +85,11 @@ export function generateReportPDF({ title, subtitle, rows, salesName }: ReportPD
   const totOrders = rows.reduce((s, r) => s + r.totalOrders, 0);
   const totPcs = rows.reduce((s, r) => s + r.totalPcs, 0);
   const totRevenue = rows.reduce((s, r) => s + r.totalRevenue, 0);
-  body.push(["", "TOTAL", String(totOrders), totPcs.toLocaleString("id-ID"), formatCurrency(totRevenue)]);
+  body.push(["", "TOTAL", String(totOrders), totPcs.toLocaleString("id-ID") + " pcs", formatCurrency(totRevenue)]);
 
   autoTable(doc, {
     startY: y,
-    head: [["No", "Periode", "Jumlah Order", "Total PCS", "Total Pendapatan"]],
+    head: [["No", "Nama Sales", "Jumlah Order", "Total PCS", "Total Pendapatan"]],
     body,
     margin: { left: margin, right: margin },
     styles: { fontSize: 9, cellPadding: 4 },
@@ -102,7 +102,6 @@ export function generateReportPDF({ title, subtitle, rows, salesName }: ReportPD
     },
     alternateRowStyles: { fillColor: [245, 247, 250] },
     didParseCell: (data: any) => {
-      // Bold the last row (totals)
       if (data.row.index === body.length - 1) {
         data.cell.styles.fontStyle = "bold";
         data.cell.styles.fillColor = [226, 232, 240];

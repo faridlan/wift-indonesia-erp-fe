@@ -10,15 +10,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { FileDown, ShoppingCart, Package, Banknote } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { format, startOfMonth, startOfYear } from "date-fns";
 import { id as localeID } from "date-fns/locale";
 import { generateReportPDF } from "@/lib/generate-report";
 
-interface ReportRow {
-  label: string;
+interface SalesRow {
+  salesId: string;
+  salesName: string;
   totalOrders: number;
   totalPcs: number;
   totalRevenue: number;
@@ -32,19 +33,12 @@ const Reports = () => {
   const { data: salesProfiles = [] } = useSalesProfiles(role);
 
   const isAdminOrSuperadmin = role === "admin" || role === "superadmin";
-  const [salesFilter, setSalesFilter] = useState<string>("all");
   const [tab, setTab] = useState("po");
 
-  // Filter orders by role & sales filter
-  const filteredOrders = useMemo(() => {
-    let filtered = orders;
-    if (!isAdminOrSuperadmin) {
-      filtered = filtered.filter((o) => o.sales_id === user?.id);
-    } else if (salesFilter !== "all") {
-      filtered = filtered.filter((o) => o.sales_id === salesFilter);
-    }
-    return filtered;
-  }, [orders, isAdminOrSuperadmin, salesFilter, user?.id]);
+  // Filters
+  const [poFilter, setPOFilter] = useState<string>("all");
+  const [monthFilter, setMonthFilter] = useState<string>(""); // yyyy-MM
+  const [yearFilter, setYearFilter] = useState<string>(""); // yyyy
 
   // Build items map: order_id -> items[]
   const itemsByOrder = useMemo(() => {
@@ -57,93 +51,126 @@ const Reports = () => {
     return map;
   }, [allOrderItems]);
 
-  // === Per PO ===
-  const poRows = useMemo((): ReportRow[] => {
-    const sorted = [...poPeriods].sort((a, b) => b.start_date.localeCompare(a.start_date));
-    return sorted.map((po) => {
-      const poOrders = filteredOrders.filter((o) => o.po_period_id === po.id);
-      let totalPcs = 0;
-      let totalRevenue = 0;
-      for (const o of poOrders) {
-        const items = itemsByOrder[o.id] || [];
-        totalPcs += items.reduce((s, i) => s + i.quantity, 0);
-        totalRevenue += o.total_price || 0;
+  // Filter orders based on tab & filters
+  const filteredOrders = useMemo(() => {
+    let filtered = orders;
+
+    if (tab === "po") {
+      if (poFilter !== "all") {
+        filtered = filtered.filter((o) => o.po_period_id === poFilter);
       }
-      return {
-        label: `${po.name} (${po.start_date} — ${po.end_date})`,
-        totalOrders: poOrders.length,
-        totalPcs,
-        totalRevenue,
+    } else if (tab === "month") {
+      if (monthFilter) {
+        filtered = filtered.filter((o) => {
+          if (!o.created_at) return false;
+          return format(new Date(o.created_at), "yyyy-MM") === monthFilter;
+        });
+      }
+    } else if (tab === "year") {
+      if (yearFilter) {
+        filtered = filtered.filter((o) => {
+          if (!o.created_at) return false;
+          return format(new Date(o.created_at), "yyyy") === yearFilter;
+        });
+      }
+    }
+
+    // Sales role: only own orders
+    if (!isAdminOrSuperadmin) {
+      filtered = filtered.filter((o) => o.sales_id === user?.id);
+    }
+
+    return filtered;
+  }, [orders, tab, poFilter, monthFilter, yearFilter, isAdminOrSuperadmin, user?.id]);
+
+  // Build per-sales rows
+  const salesRows = useMemo((): SalesRow[] => {
+    const map: Record<string, SalesRow> = {};
+
+    for (const o of filteredOrders) {
+      if (!map[o.sales_id]) {
+        const profile = salesProfiles.find((s) => s.id === o.sales_id);
+        map[o.sales_id] = {
+          salesId: o.sales_id,
+          salesName: profile?.full_name || o.sales_id,
+          totalOrders: 0,
+          totalPcs: 0,
+          totalRevenue: 0,
+        };
+      }
+      const row = map[o.sales_id];
+      row.totalOrders += 1;
+      const items = itemsByOrder[o.id] || [];
+      row.totalPcs += items.reduce((s, i) => s + i.quantity, 0);
+      row.totalRevenue += o.total_price || 0;
+    }
+
+    // For non-admin, also show own row even if no profile in salesProfiles
+    if (!isAdminOrSuperadmin && user?.id && !map[user.id]) {
+      map[user.id] = {
+        salesId: user.id,
+        salesName: "Anda",
+        totalOrders: 0,
+        totalPcs: 0,
+        totalRevenue: 0,
       };
-    });
-  }, [poPeriods, filteredOrders, itemsByOrder]);
-
-  // === Per Bulan (last 12 months) ===
-  const monthRows = useMemo((): ReportRow[] => {
-    const months: ReportRow[] = [];
-    const now = new Date();
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = format(startOfMonth(d), "yyyy-MM");
-      const label = format(d, "MMMM yyyy", { locale: localeID });
-      const monthOrders = filteredOrders.filter((o) => {
-        if (!o.created_at) return false;
-        return format(new Date(o.created_at), "yyyy-MM") === key;
-      });
-      let totalPcs = 0;
-      let totalRevenue = 0;
-      for (const o of monthOrders) {
-        const items = itemsByOrder[o.id] || [];
-        totalPcs += items.reduce((s, i) => s + i.quantity, 0);
-        totalRevenue += o.total_price || 0;
-      }
-      months.push({ label, totalOrders: monthOrders.length, totalPcs, totalRevenue });
     }
-    return months;
-  }, [filteredOrders, itemsByOrder]);
 
-  // === Per Tahun (last 5 years) ===
-  const yearRows = useMemo((): ReportRow[] => {
-    const years: ReportRow[] = [];
-    const now = new Date();
-    for (let i = 4; i >= 0; i--) {
-      const yr = now.getFullYear() - i;
-      const key = String(yr);
-      const label = key;
-      const yrOrders = filteredOrders.filter((o) => {
-        if (!o.created_at) return false;
-        return format(startOfYear(new Date(o.created_at)), "yyyy") === key;
-      });
-      let totalPcs = 0;
-      let totalRevenue = 0;
-      for (const o of yrOrders) {
-        const items = itemsByOrder[o.id] || [];
-        totalPcs += items.reduce((s, i) => s + i.quantity, 0);
-        totalRevenue += o.total_price || 0;
-      }
-      years.push({ label, totalOrders: yrOrders.length, totalPcs, totalRevenue });
-    }
-    return years;
-  }, [filteredOrders, itemsByOrder]);
-
-  const currentRows = tab === "po" ? poRows : tab === "month" ? monthRows : yearRows;
+    return Object.values(map).sort((a, b) => b.totalPcs - a.totalPcs);
+  }, [filteredOrders, itemsByOrder, salesProfiles, isAdminOrSuperadmin, user?.id]);
 
   // Totals
-  const totalOrders = currentRows.reduce((s, r) => s + r.totalOrders, 0);
-  const totalPcs = currentRows.reduce((s, r) => s + r.totalPcs, 0);
-  const totalRevenue = currentRows.reduce((s, r) => s + r.totalRevenue, 0);
+  const totalOrders = salesRows.reduce((s, r) => s + r.totalOrders, 0);
+  const totalPcs = salesRows.reduce((s, r) => s + r.totalPcs, 0);
+  const totalRevenue = salesRows.reduce((s, r) => s + r.totalRevenue, 0);
 
-  const tabTitle = tab === "po" ? "Per PO Period" : tab === "month" ? "Per Bulan" : "Per Tahun";
-  const salesName = isAdminOrSuperadmin && salesFilter !== "all"
-    ? salesProfiles.find((s) => s.id === salesFilter)?.full_name || ""
-    : isAdminOrSuperadmin ? "Semua Sales" : undefined;
+  // Available years for filter
+  const availableYears = useMemo(() => {
+    const yrs = new Set<string>();
+    for (const o of orders) {
+      if (o.created_at) yrs.add(format(new Date(o.created_at), "yyyy"));
+    }
+    return Array.from(yrs).sort().reverse();
+  }, [orders]);
+
+  // Available months for filter
+  const availableMonths = useMemo(() => {
+    const mos = new Set<string>();
+    for (const o of orders) {
+      if (o.created_at) mos.add(format(new Date(o.created_at), "yyyy-MM"));
+    }
+    return Array.from(mos).sort().reverse();
+  }, [orders]);
+
+  const getFilterLabel = () => {
+    if (tab === "po") {
+      if (poFilter === "all") return "Semua PO Period";
+      const po = poPeriods.find((p) => p.id === poFilter);
+      return po ? `${po.name} (${po.start_date} — ${po.end_date})` : "";
+    }
+    if (tab === "month") {
+      if (!monthFilter) return "Semua Bulan";
+      const d = new Date(monthFilter + "-01");
+      return format(d, "MMMM yyyy", { locale: localeID });
+    }
+    if (tab === "year") {
+      return yearFilter || "Semua Tahun";
+    }
+    return "";
+  };
 
   const handleExportPDF = () => {
+    const tabTitle = tab === "po" ? "Per PO Period" : tab === "month" ? "Per Bulan" : "Per Tahun";
     generateReportPDF({
       title: `Laporan ${tabTitle}`,
-      subtitle: `Data ${tab === "po" ? "per PO Period" : tab === "month" ? "12 bulan terakhir" : "5 tahun terakhir"}`,
-      rows: currentRows,
-      salesName: salesName || undefined,
+      subtitle: `Filter: ${getFilterLabel()}`,
+      rows: salesRows.map((r, i) => ({
+        label: r.salesName,
+        totalOrders: r.totalOrders,
+        totalPcs: r.totalPcs,
+        totalRevenue: r.totalRevenue,
+      })),
+      salesName: undefined,
     });
   };
 
@@ -152,31 +179,13 @@ const Reports = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Laporan</h1>
-          <p className="text-muted-foreground">Ringkasan jumlah order, PCS, dan pendapatan.</p>
+          <p className="text-muted-foreground">Ringkasan jumlah order, PCS, dan pendapatan per sales.</p>
         </div>
         <Button onClick={handleExportPDF} variant="outline">
           <FileDown className="h-4 w-4 mr-2" />
           Export PDF
         </Button>
       </div>
-
-      {/* Sales filter for admin/superadmin */}
-      {isAdminOrSuperadmin && (
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-muted-foreground">Filter Sales:</span>
-          <Select value={salesFilter} onValueChange={setSalesFilter}>
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder="Semua Sales" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Sales</SelectItem>
-              {salesProfiles.map((s) => (
-                <SelectItem key={s.id} value={s.id}>{s.full_name || s.id}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -222,25 +231,83 @@ const Reports = () => {
       </div>
 
       {/* Tabs */}
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={tab} onValueChange={(v) => { setTab(v); }}>
         <TabsList>
           <TabsTrigger value="po">Per PO</TabsTrigger>
           <TabsTrigger value="month">Per Bulan</TabsTrigger>
           <TabsTrigger value="year">Per Tahun</TabsTrigger>
         </TabsList>
 
+        {/* Filters */}
+        <div className="flex items-center gap-3 mt-4 flex-wrap">
+          {tab === "po" && (
+            <>
+              <span className="text-sm font-medium text-muted-foreground">Filter PO:</span>
+              <Select value={poFilter} onValueChange={setPOFilter}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Semua PO" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua PO Period</SelectItem>
+                  {[...poPeriods].sort((a, b) => b.start_date.localeCompare(a.start_date)).map((po) => (
+                    <SelectItem key={po.id} value={po.id}>
+                      {po.name} ({po.start_date} — {po.end_date})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+
+          {tab === "month" && (
+            <>
+              <span className="text-sm font-medium text-muted-foreground">Filter Bulan:</span>
+              <Select value={monthFilter || "all"} onValueChange={(v) => setMonthFilter(v === "all" ? "" : v)}>
+                <SelectTrigger className="w-56">
+                  <SelectValue placeholder="Semua Bulan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Bulan</SelectItem>
+                  {availableMonths.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {format(new Date(m + "-01"), "MMMM yyyy", { locale: localeID })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+
+          {tab === "year" && (
+            <>
+              <span className="text-sm font-medium text-muted-foreground">Filter Tahun:</span>
+              <Select value={yearFilter || "all"} onValueChange={(v) => setYearFilter(v === "all" ? "" : v)}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Semua Tahun" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Tahun</SelectItem>
+                  {availableYears.map((y) => (
+                    <SelectItem key={y} value={y}>{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+        </div>
+
         <TabsContent value={tab} className="space-y-4 mt-4">
           {/* Chart */}
           <Card>
             <CardHeader>
-              <CardTitle>Grafik {tabTitle}</CardTitle>
+              <CardTitle>Grafik per Sales</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={currentRows}>
+                  <BarChart data={salesRows}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="label" tick={{ fontSize: 11 }} interval={0} angle={tab === "po" ? -20 : 0} textAnchor={tab === "po" ? "end" : "middle"} height={tab === "po" ? 80 : 40} />
+                    <XAxis dataKey="salesName" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={80} />
                     <YAxis yAxisId="left" tickFormatter={(v) => v.toLocaleString("id-ID")} />
                     <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => `Rp ${(v / 1000000).toFixed(0)}jt`} />
                     <Tooltip
@@ -260,42 +327,45 @@ const Reports = () => {
             </CardContent>
           </Card>
 
-          {/* Table */}
+          {/* Table per Sales */}
           <Card>
             <CardHeader>
-              <CardTitle>Ringkasan {tabTitle}</CardTitle>
+              <CardTitle>Ringkasan per Sales — {getFilterLabel()}</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Periode</TableHead>
+                    <TableHead className="w-16">No</TableHead>
+                    <TableHead>Nama Sales</TableHead>
                     <TableHead className="text-right">Jumlah Order</TableHead>
                     <TableHead className="text-right">Total PCS</TableHead>
                     <TableHead className="text-right">Total Pendapatan</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentRows.length === 0 ? (
+                  {salesRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                         Belum ada data.
                       </TableCell>
                     </TableRow>
                   ) : (
                     <>
-                      {currentRows.map((r, i) => (
-                        <TableRow key={i}>
-                          <TableCell className="font-medium">{r.label}</TableCell>
+                      {salesRows.map((r, i) => (
+                        <TableRow key={r.salesId}>
+                          <TableCell>{i + 1}</TableCell>
+                          <TableCell className="font-medium">{r.salesName}</TableCell>
                           <TableCell className="text-right">{r.totalOrders}</TableCell>
-                          <TableCell className="text-right">{r.totalPcs.toLocaleString("id-ID")}</TableCell>
+                          <TableCell className="text-right">{r.totalPcs.toLocaleString("id-ID")} pcs</TableCell>
                           <TableCell className="text-right">Rp {r.totalRevenue.toLocaleString("id-ID")}</TableCell>
                         </TableRow>
                       ))}
                       <TableRow className="bg-muted/50 font-bold">
+                        <TableCell></TableCell>
                         <TableCell>TOTAL</TableCell>
                         <TableCell className="text-right">{totalOrders}</TableCell>
-                        <TableCell className="text-right">{totalPcs.toLocaleString("id-ID")}</TableCell>
+                        <TableCell className="text-right">{totalPcs.toLocaleString("id-ID")} pcs</TableCell>
                         <TableCell className="text-right">Rp {totalRevenue.toLocaleString("id-ID")}</TableCell>
                       </TableRow>
                     </>
