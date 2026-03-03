@@ -21,7 +21,7 @@ export type Database = {
           id: string
           name: string
           phone: string | null
-          sales_id: string | null
+          sales_id: string
         }
         Insert: {
           address?: string | null
@@ -29,7 +29,7 @@ export type Database = {
           id?: string
           name: string
           phone?: string | null
-          sales_id?: string | null
+          sales_id: string
         }
         Update: {
           address?: string | null
@@ -37,7 +37,7 @@ export type Database = {
           id?: string
           name?: string
           phone?: string | null
-          sales_id?: string | null
+          sales_id?: string
         }
         Relationships: [
           {
@@ -240,12 +240,28 @@ export type Database = {
         }
         Relationships: []
       }
+      roles: {
+        Row: {
+          code: string
+          name: string
+        }
+        Insert: {
+          code: string
+          name: string
+        }
+        Update: {
+          code?: string
+          name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: { Args: never; Returns: boolean }
+      is_superadmin: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
