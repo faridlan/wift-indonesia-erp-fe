@@ -10,10 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { FileDown, ShoppingCart, Package, Banknote } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
-import { format, startOfMonth, startOfYear } from "date-fns";
+import { format } from "date-fns";
 import { id as localeID } from "date-fns/locale";
 import { generateReportPDF } from "@/lib/generate-report";
 
@@ -35,12 +34,10 @@ const Reports = () => {
   const isAdminOrSuperadmin = role === "admin" || role === "superadmin";
   const [tab, setTab] = useState("po");
 
-  // Filters
   const [poFilter, setPOFilter] = useState<string>("all");
-  const [monthFilter, setMonthFilter] = useState<string>(""); // yyyy-MM
-  const [yearFilter, setYearFilter] = useState<string>(""); // yyyy
+  const [monthFilter, setMonthFilter] = useState<string>("");
+  const [yearFilter, setYearFilter] = useState<string>("");
 
-  // Build items map: order_id -> items[]
   const itemsByOrder = useMemo(() => {
     const map: Record<string, typeof allOrderItems> = {};
     for (const item of allOrderItems) {
@@ -51,7 +48,6 @@ const Reports = () => {
     return map;
   }, [allOrderItems]);
 
-  // Filter orders based on tab & filters
   const filteredOrders = useMemo(() => {
     let filtered = orders;
 
@@ -75,7 +71,6 @@ const Reports = () => {
       }
     }
 
-    // Sales role: only own orders
     if (!isAdminOrSuperadmin) {
       filtered = filtered.filter((o) => o.sales_id === user?.id);
     }
@@ -83,7 +78,6 @@ const Reports = () => {
     return filtered;
   }, [orders, tab, poFilter, monthFilter, yearFilter, isAdminOrSuperadmin, user?.id]);
 
-  // Build per-sales rows
   const salesRows = useMemo((): SalesRow[] => {
     const map: Record<string, SalesRow> = {};
 
@@ -105,7 +99,6 @@ const Reports = () => {
       row.totalRevenue += o.total_price || 0;
     }
 
-    // For non-admin, also show own row even if no profile in salesProfiles
     if (!isAdminOrSuperadmin && user?.id && !map[user.id]) {
       map[user.id] = {
         salesId: user.id,
@@ -119,12 +112,10 @@ const Reports = () => {
     return Object.values(map).sort((a, b) => b.totalPcs - a.totalPcs);
   }, [filteredOrders, itemsByOrder, salesProfiles, isAdminOrSuperadmin, user?.id]);
 
-  // Totals
   const totalOrders = salesRows.reduce((s, r) => s + r.totalOrders, 0);
   const totalPcs = salesRows.reduce((s, r) => s + r.totalPcs, 0);
   const totalRevenue = salesRows.reduce((s, r) => s + r.totalRevenue, 0);
 
-  // Available years for filter
   const availableYears = useMemo(() => {
     const yrs = new Set<string>();
     for (const o of orders) {
@@ -133,7 +124,6 @@ const Reports = () => {
     return Array.from(yrs).sort().reverse();
   }, [orders]);
 
-  // Available months for filter
   const availableMonths = useMemo(() => {
     const mos = new Set<string>();
     for (const o of orders) {
@@ -164,7 +154,7 @@ const Reports = () => {
     generateReportPDF({
       title: `Laporan ${tabTitle}`,
       subtitle: `Filter: ${getFilterLabel()}`,
-      rows: salesRows.map((r, i) => ({
+      rows: salesRows.map((r) => ({
         label: r.salesName,
         totalOrders: r.totalOrders,
         totalPcs: r.totalPcs,
@@ -175,55 +165,58 @@ const Reports = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Laporan</h1>
-          <p className="text-muted-foreground">Ringkasan jumlah order, PCS, dan pendapatan per sales.</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Laporan</h1>
+          <p className="text-sm text-muted-foreground">Ringkasan order, PCS & pendapatan per sales.</p>
         </div>
-        <Button onClick={handleExportPDF} variant="outline">
+        <Button onClick={handleExportPDF} variant="outline" size="sm" className="self-start sm:self-auto">
           <FileDown className="h-4 w-4 mr-2" />
           Export PDF
         </Button>
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2 md:gap-4">
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-primary/10 p-3">
-                <ShoppingCart className="h-5 w-5 text-primary" />
+          <CardContent className="p-3 md:pt-6 md:p-6">
+            <div className="flex flex-col items-center gap-1 md:flex-row md:gap-3">
+              <div className="rounded-lg bg-primary/10 p-2 md:p-3">
+                <ShoppingCart className="h-4 w-4 md:h-5 md:w-5 text-primary" />
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Order</p>
-                <p className="text-2xl font-bold text-foreground">{totalOrders.toLocaleString("id-ID")}</p>
+              <div className="text-center md:text-left">
+                <p className="text-[10px] md:text-sm text-muted-foreground">Order</p>
+                <p className="text-lg md:text-2xl font-bold text-foreground">{totalOrders.toLocaleString("id-ID")}</p>
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-primary/10 p-3">
-                <Package className="h-5 w-5 text-primary" />
+          <CardContent className="p-3 md:pt-6 md:p-6">
+            <div className="flex flex-col items-center gap-1 md:flex-row md:gap-3">
+              <div className="rounded-lg bg-primary/10 p-2 md:p-3">
+                <Package className="h-4 w-4 md:h-5 md:w-5 text-primary" />
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total PCS</p>
-                <p className="text-2xl font-bold text-foreground">{totalPcs.toLocaleString("id-ID")}</p>
+              <div className="text-center md:text-left">
+                <p className="text-[10px] md:text-sm text-muted-foreground">PCS</p>
+                <p className="text-lg md:text-2xl font-bold text-foreground">{totalPcs.toLocaleString("id-ID")}</p>
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-primary/10 p-3">
-                <Banknote className="h-5 w-5 text-primary" />
+          <CardContent className="p-3 md:pt-6 md:p-6">
+            <div className="flex flex-col items-center gap-1 md:flex-row md:gap-3">
+              <div className="rounded-lg bg-primary/10 p-2 md:p-3">
+                <Banknote className="h-4 w-4 md:h-5 md:w-5 text-primary" />
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Pendapatan</p>
-                <p className="text-2xl font-bold text-foreground">Rp {totalRevenue.toLocaleString("id-ID")}</p>
+              <div className="text-center md:text-left">
+                <p className="text-[10px] md:text-sm text-muted-foreground">Pendapatan</p>
+                <p className="text-base md:text-2xl font-bold text-foreground leading-tight">
+                  <span className="hidden sm:inline">Rp </span>{totalRevenue.toLocaleString("id-ID")}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -231,20 +224,19 @@ const Reports = () => {
       </div>
 
       {/* Tabs */}
-      <Tabs value={tab} onValueChange={(v) => { setTab(v); }}>
-        <TabsList>
-          <TabsTrigger value="po">Per PO</TabsTrigger>
-          <TabsTrigger value="month">Per Bulan</TabsTrigger>
-          <TabsTrigger value="year">Per Tahun</TabsTrigger>
-        </TabsList>
+      <Tabs value={tab} onValueChange={(v) => setTab(v)}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="po" className="flex-1 sm:flex-none text-xs sm:text-sm">Per PO</TabsTrigger>
+            <TabsTrigger value="month" className="flex-1 sm:flex-none text-xs sm:text-sm">Per Bulan</TabsTrigger>
+            <TabsTrigger value="year" className="flex-1 sm:flex-none text-xs sm:text-sm">Per Tahun</TabsTrigger>
+          </TabsList>
 
-        {/* Filters */}
-        <div className="flex items-center gap-3 mt-4 flex-wrap">
-          {tab === "po" && (
-            <>
-              <span className="text-sm font-medium text-muted-foreground">Filter PO:</span>
+          {/* Filter inline */}
+          <div className="w-full sm:w-auto">
+            {tab === "po" && (
               <Select value={poFilter} onValueChange={setPOFilter}>
-                <SelectTrigger className="w-64">
+                <SelectTrigger className="w-full sm:w-64 text-xs sm:text-sm">
                   <SelectValue placeholder="Semua PO" />
                 </SelectTrigger>
                 <SelectContent>
@@ -256,14 +248,11 @@ const Reports = () => {
                   ))}
                 </SelectContent>
               </Select>
-            </>
-          )}
+            )}
 
-          {tab === "month" && (
-            <>
-              <span className="text-sm font-medium text-muted-foreground">Filter Bulan:</span>
+            {tab === "month" && (
               <Select value={monthFilter || "all"} onValueChange={(v) => setMonthFilter(v === "all" ? "" : v)}>
-                <SelectTrigger className="w-56">
+                <SelectTrigger className="w-full sm:w-56 text-xs sm:text-sm">
                   <SelectValue placeholder="Semua Bulan" />
                 </SelectTrigger>
                 <SelectContent>
@@ -275,14 +264,11 @@ const Reports = () => {
                   ))}
                 </SelectContent>
               </Select>
-            </>
-          )}
+            )}
 
-          {tab === "year" && (
-            <>
-              <span className="text-sm font-medium text-muted-foreground">Filter Tahun:</span>
+            {tab === "year" && (
               <Select value={yearFilter || "all"} onValueChange={(v) => setYearFilter(v === "all" ? "" : v)}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-full sm:w-40 text-xs sm:text-sm">
                   <SelectValue placeholder="Semua Tahun" />
                 </SelectTrigger>
                 <SelectContent>
@@ -292,24 +278,24 @@ const Reports = () => {
                   ))}
                 </SelectContent>
               </Select>
-            </>
-          )}
+            )}
+          </div>
         </div>
 
         <TabsContent value={tab} className="space-y-4 mt-4">
-          {/* Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Grafik per Sales</CardTitle>
+          {/* Chart - hidden on very small screens */}
+          <Card className="hidden sm:block">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm md:text-base">Grafik per Sales</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-[320px]">
+              <div className="h-[260px] md:h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={salesRows}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="salesName" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={80} />
-                    <YAxis yAxisId="left" tickFormatter={(v) => v.toLocaleString("id-ID")} />
-                    <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => `Rp ${(v / 1000000).toFixed(0)}jt`} />
+                    <XAxis dataKey="salesName" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={60} />
+                    <YAxis yAxisId="left" tickFormatter={(v) => v.toLocaleString("id-ID")} tick={{ fontSize: 10 }} width={40} />
+                    <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => `${(v / 1000000).toFixed(0)}jt`} tick={{ fontSize: 10 }} width={45} />
                     <Tooltip
                       formatter={(value: number, name: string) => {
                         if (name === "totalRevenue") return [`Rp ${value.toLocaleString("id-ID")}`, "Pendapatan"];
@@ -317,7 +303,7 @@ const Reports = () => {
                         return [value, "Order"];
                       }}
                     />
-                    <Legend formatter={(v) => v === "totalOrders" ? "Jumlah Order" : v === "totalPcs" ? "Total PCS" : "Pendapatan"} />
+                    <Legend formatter={(v) => v === "totalOrders" ? "Order" : v === "totalPcs" ? "PCS" : "Pendapatan"} wrapperStyle={{ fontSize: 11 }} />
                     <Bar yAxisId="left" dataKey="totalOrders" fill="hsl(var(--primary))" name="totalOrders" />
                     <Bar yAxisId="left" dataKey="totalPcs" fill="hsl(var(--accent-foreground))" name="totalPcs" />
                     <Bar yAxisId="right" dataKey="totalRevenue" fill="hsl(var(--muted-foreground))" name="totalRevenue" opacity={0.5} />
@@ -327,51 +313,55 @@ const Reports = () => {
             </CardContent>
           </Card>
 
-          {/* Table per Sales */}
+          {/* Table - mobile-optimized with horizontal scroll */}
           <Card>
-            <CardHeader>
-              <CardTitle>Ringkasan per Sales — {getFilterLabel()}</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm md:text-base">
+                Ringkasan per Sales — {getFilterLabel()}
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-16">No</TableHead>
-                    <TableHead>Nama Sales</TableHead>
-                    <TableHead className="text-right">Jumlah Order</TableHead>
-                    <TableHead className="text-right">Total PCS</TableHead>
-                    <TableHead className="text-right">Total Pendapatan</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {salesRows.length === 0 ? (
+            <CardContent className="px-0 md:px-6">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                        Belum ada data.
-                      </TableCell>
+                      <TableHead className="w-10 text-xs">No</TableHead>
+                      <TableHead className="text-xs min-w-[100px]">Sales</TableHead>
+                      <TableHead className="text-right text-xs">Order</TableHead>
+                      <TableHead className="text-right text-xs">PCS</TableHead>
+                      <TableHead className="text-right text-xs min-w-[100px]">Pendapatan</TableHead>
                     </TableRow>
-                  ) : (
-                    <>
-                      {salesRows.map((r, i) => (
-                        <TableRow key={r.salesId}>
-                          <TableCell>{i + 1}</TableCell>
-                          <TableCell className="font-medium">{r.salesName}</TableCell>
-                          <TableCell className="text-right">{r.totalOrders}</TableCell>
-                          <TableCell className="text-right">{r.totalPcs.toLocaleString("id-ID")} pcs</TableCell>
-                          <TableCell className="text-right">Rp {r.totalRevenue.toLocaleString("id-ID")}</TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow className="bg-muted/50 font-bold">
-                        <TableCell></TableCell>
-                        <TableCell>TOTAL</TableCell>
-                        <TableCell className="text-right">{totalOrders}</TableCell>
-                        <TableCell className="text-right">{totalPcs.toLocaleString("id-ID")} pcs</TableCell>
-                        <TableCell className="text-right">Rp {totalRevenue.toLocaleString("id-ID")}</TableCell>
+                  </TableHeader>
+                  <TableBody>
+                    {salesRows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8 text-sm">
+                          Belum ada data.
+                        </TableCell>
                       </TableRow>
-                    </>
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      <>
+                        {salesRows.map((r, i) => (
+                          <TableRow key={r.salesId}>
+                            <TableCell className="text-xs">{i + 1}</TableCell>
+                            <TableCell className="font-medium text-xs">{r.salesName}</TableCell>
+                            <TableCell className="text-right text-xs">{r.totalOrders}</TableCell>
+                            <TableCell className="text-right text-xs">{r.totalPcs.toLocaleString("id-ID")}</TableCell>
+                            <TableCell className="text-right text-xs whitespace-nowrap">Rp {r.totalRevenue.toLocaleString("id-ID")}</TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="bg-muted/50 font-bold">
+                          <TableCell></TableCell>
+                          <TableCell className="text-xs">TOTAL</TableCell>
+                          <TableCell className="text-right text-xs">{totalOrders}</TableCell>
+                          <TableCell className="text-right text-xs">{totalPcs.toLocaleString("id-ID")}</TableCell>
+                          <TableCell className="text-right text-xs whitespace-nowrap">Rp {totalRevenue.toLocaleString("id-ID")}</TableCell>
+                        </TableRow>
+                      </>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
