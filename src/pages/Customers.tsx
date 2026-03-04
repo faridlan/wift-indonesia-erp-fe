@@ -128,14 +128,14 @@ const Customers = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-foreground">Customers</h1>
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Customers</h1>
+        <div className="flex items-center gap-2 sm:gap-3">
           <Input
-            placeholder="Cari nama, telepon, atau alamat..."
+            placeholder="Cari..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-64"
+            className="w-full sm:w-64"
           />
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -194,36 +194,92 @@ const Customers = () => {
           <p className="text-sm text-muted-foreground mb-2">
             Menampilkan {paginatedCustomers.length} dari {filteredCustomers.length} customer.
           </p>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nama</TableHead>
-              <TableHead>Telepon</TableHead>
-              <TableHead>Alamat</TableHead>
-              <TableHead className="w-24">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+
+          {/* Desktop Table */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nama</TableHead>
+                  <TableHead>Telepon</TableHead>
+                  <TableHead>Alamat</TableHead>
+                  <TableHead className="w-24">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedCustomers.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell>{c.phone || "-"}</TableCell>
+                    <TableCell>{c.address || "-"}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Hapus customer?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tindakan ini tidak dapat dibatalkan. Data customer akan dihapus secara permanen.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Batal</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={async () => {
+                                  try {
+                                    await deleteCustomerMutation.mutateAsync(c.id);
+                                    toast({ title: "Berhasil", description: "Customer dihapus." });
+                                  } catch (err) {
+                                    toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
+                                  }
+                                }}
+                              >
+                                Hapus
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredCustomers.length === 0 && (
+                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Belum ada customer.</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden space-y-3">
+            {paginatedCustomers.length === 0 && (
+              <p className="text-center text-muted-foreground py-8">Belum ada customer.</p>
+            )}
             {paginatedCustomers.map((c) => (
-              <TableRow key={c.id}>
-                <TableCell className="font-medium">{c.name}</TableCell>
-                <TableCell>{c.phone || "-"}</TableCell>
-                <TableCell>{c.address || "-"}</TableCell>
-                <TableCell>
+              <div key={c.id} className="rounded-lg border bg-card p-4 space-y-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-semibold text-foreground">{c.name}</p>
+                    <p className="text-sm text-muted-foreground">{c.phone || "Tidak ada telepon"}</p>
+                  </div>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Hapus customer?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Tindakan ini tidak dapat dibatalkan. Data customer akan dihapus secara permanen.
-                          </AlertDialogDescription>
+                          <AlertDialogDescription>Data customer akan dihapus secara permanen.</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Batal</AlertDialogCancel>
@@ -233,11 +289,7 @@ const Customers = () => {
                                 await deleteCustomerMutation.mutateAsync(c.id);
                                 toast({ title: "Berhasil", description: "Customer dihapus." });
                               } catch (err) {
-                                toast({
-                                  title: "Error",
-                                  description: getErrorMessage(err),
-                                  variant: "destructive",
-                                });
+                                toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
                               }
                             }}
                           >
@@ -247,14 +299,14 @@ const Customers = () => {
                       </AlertDialogContent>
                     </AlertDialog>
                   </div>
-                </TableCell>
-              </TableRow>
+                </div>
+                {c.address && (
+                  <p className="text-xs text-muted-foreground border-t pt-2">{c.address}</p>
+                )}
+              </div>
             ))}
-            {filteredCustomers.length === 0 && (
-              <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Belum ada customer.</TableCell></TableRow>
-            )}
-          </TableBody>
-        </Table>
+          </div>
+
           {pageCount > 1 && (
             <div className="mt-4">
               <Pagination>

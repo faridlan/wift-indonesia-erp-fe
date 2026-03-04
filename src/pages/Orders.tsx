@@ -393,33 +393,35 @@ const Orders = () => {
           ⚠️ Tidak ada PO period aktif. Sales tidak dapat membuat order baru.
         </div>
       )}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-foreground">Orders</h1>
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Orders</h1>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
           <Input
             placeholder="Cari no. order, customer..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-64"
+            className="w-full sm:w-64"
           />
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40"><SelectValue placeholder="Filter status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua status</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="processing">Processing</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
-            <SelectTrigger className="w-40"><SelectValue placeholder="Filter pembayaran" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua pembayaran</SelectItem>
-              <SelectItem value="unpaid">Unpaid</SelectItem>
-              <SelectItem value="partial">Partial</SelectItem>
-              <SelectItem value="paid">Paid</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Filter status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua status</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="processing">Processing</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+              <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Filter bayar" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua</SelectItem>
+                <SelectItem value="unpaid">Unpaid</SelectItem>
+                <SelectItem value="partial">Partial</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           <Dialog
             open={dialogOpen}
@@ -861,92 +863,143 @@ const Orders = () => {
           <p className="text-sm text-muted-foreground mb-2">
             Menampilkan {paginatedOrders.length} dari {filteredOrders.length} order.
           </p>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>No.</TableHead>
-                <TableHead>Sales</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>PPN</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Bayar</TableHead>
-                <TableHead>Pembayaran</TableHead>
-                <TableHead className="w-32">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedOrders.map((o) => (
-                <TableRow key={o.id}>
-                  <TableCell className="font-medium">{o.order_number}</TableCell>
-                  <TableCell>{salesName(o.sales_id)}</TableCell>
-                  <TableCell>{customerName(o.customer_id)}</TableCell>
-                  <TableCell><Badge variant={statusColor(o.status)}>{o.status}</Badge></TableCell>
-                  <TableCell>{(o as any).ppn_percentage > 0 ? <Badge variant="secondary">PPN {(o as any).ppn_percentage}%</Badge> : "-"}</TableCell>
-                  <TableCell>Rp {(o.total_price || 0).toLocaleString("id-ID")}</TableCell>
-                  <TableCell>Rp {(o.amount_paid || 0).toLocaleString("id-ID")}</TableCell>
-                  <TableCell><Badge variant={o.payment_status === "paid" ? "default" : "outline"}>{o.payment_status}</Badge></TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <div className="flex gap-1">
-                        {/* NEW: Payment Button */}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-emerald-600 hover:text-emerald-700"
-                          onClick={() => {
-                            setSelectedOrderForPayment(o);
-                            setPaymentAmount(String((o.total_price || 0) - (o.amount_paid || 0))); // Default to remaining balance
-                            setPaymentDialogOpen(true);
-                          }}
-                          title="Input Pembayaran"
-                        >
-                          <Receipt className="h-4 w-4" />
-                        </Button>
 
-                        <Button variant="ghost" size="icon" onClick={() => openDetail(o)}><Eye className="h-4 w-4" /></Button>
-                        {/* ... other buttons ... */}
-                      </div>
-                      <Button variant="ghost" size="icon" onClick={() => handleDownloadInvoice(o)} title="Download Invoice"><FileDown className="h-4 w-4" /></Button>
-                      {o.payment_status === "paid" && (
-                        <Button variant="ghost" size="icon" onClick={() => handleDownloadNota(o)} title="Download Nota"><Receipt className="h-4 w-4 text-green-600" /></Button>
-                      )}
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(o)}><Pencil className="h-4 w-4" /></Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Hapus order?</AlertDialogTitle>
-                            <AlertDialogDescription>Data order dan semua item akan dihapus secara permanen.</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Batal</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={async () => {
-                                try {
-                                  await deleteOrderMutation.mutateAsync(o.id);
-                                  toast({ title: "Berhasil", description: "Order dihapus." });
-                                } catch (err) {
-                                  toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
-                                }
-                              }}
-                            >
-                              Hapus
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
+          {/* Desktop Table */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>No.</TableHead>
+                  <TableHead>Sales</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>PPN</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Bayar</TableHead>
+                  <TableHead>Pembayaran</TableHead>
+                  <TableHead className="w-32">Aksi</TableHead>
                 </TableRow>
-              ))}
-              {filteredOrders.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Belum ada order.</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {paginatedOrders.map((o) => (
+                  <TableRow key={o.id}>
+                    <TableCell className="font-medium">{o.order_number}</TableCell>
+                    <TableCell>{salesName(o.sales_id)}</TableCell>
+                    <TableCell>{customerName(o.customer_id)}</TableCell>
+                    <TableCell><Badge variant={statusColor(o.status)}>{o.status}</Badge></TableCell>
+                    <TableCell>{(o as any).ppn_percentage > 0 ? <Badge variant="secondary">PPN {(o as any).ppn_percentage}%</Badge> : "-"}</TableCell>
+                    <TableCell>Rp {(o.total_price || 0).toLocaleString("id-ID")}</TableCell>
+                    <TableCell>Rp {(o.amount_paid || 0).toLocaleString("id-ID")}</TableCell>
+                    <TableCell><Badge variant={o.payment_status === "paid" ? "default" : "outline"}>{o.payment_status}</Badge></TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="text-emerald-600 hover:text-emerald-700" onClick={() => { setSelectedOrderForPayment(o); setPaymentAmount(String((o.total_price || 0) - (o.amount_paid || 0))); setPaymentDialogOpen(true); }} title="Input Pembayaran"><Receipt className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => openDetail(o)}><Eye className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDownloadInvoice(o)} title="Download Invoice"><FileDown className="h-4 w-4" /></Button>
+                        {o.payment_status === "paid" && (
+                          <Button variant="ghost" size="icon" onClick={() => handleDownloadNota(o)} title="Download Nota"><Receipt className="h-4 w-4 text-green-600" /></Button>
+                        )}
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(o)}><Pencil className="h-4 w-4" /></Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Hapus order?</AlertDialogTitle>
+                              <AlertDialogDescription>Data order dan semua item akan dihapus secara permanen.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Batal</AlertDialogCancel>
+                              <AlertDialogAction onClick={async () => { try { await deleteOrderMutation.mutateAsync(o.id); toast({ title: "Berhasil", description: "Order dihapus." }); } catch (err) { toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" }); } }}>Hapus</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredOrders.length === 0 && (
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">Belum ada order.</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden space-y-3">
+            {paginatedOrders.length === 0 && (
+              <p className="text-center text-muted-foreground py-8">Belum ada order.</p>
+            )}
+            {paginatedOrders.map((o) => (
+              <div key={o.id} className="rounded-lg border bg-card p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-semibold text-foreground">#{o.order_number}</p>
+                    <p className="text-sm text-muted-foreground">{customerName(o.customer_id)}</p>
+                    <p className="text-xs text-muted-foreground">{salesName(o.sales_id)}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge variant={statusColor(o.status)}>{o.status}</Badge>
+                    <Badge variant={o.payment_status === "paid" ? "default" : "outline"} className="text-xs">{o.payment_status}</Badge>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-sm border-t pt-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Total</p>
+                    <p className="font-medium">Rp {(o.total_price || 0).toLocaleString("id-ID")}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Dibayar</p>
+                    <p className="font-medium">Rp {(o.amount_paid || 0).toLocaleString("id-ID")}</p>
+                  </div>
+                </div>
+
+                {(o as any).ppn_percentage > 0 && (
+                  <Badge variant="secondary" className="text-xs">PPN {(o as any).ppn_percentage}%</Badge>
+                )}
+
+                <div className="flex flex-wrap gap-1 border-t pt-2">
+                  <Button variant="ghost" size="sm" className="h-8 text-xs text-emerald-600" onClick={() => { setSelectedOrderForPayment(o); setPaymentAmount(String((o.total_price || 0) - (o.amount_paid || 0))); setPaymentDialogOpen(true); }}>
+                    <Receipt className="h-3.5 w-3.5 mr-1" />Bayar
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => openDetail(o)}>
+                    <Eye className="h-3.5 w-3.5 mr-1" />Detail
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleDownloadInvoice(o)}>
+                    <FileDown className="h-3.5 w-3.5 mr-1" />Invoice
+                  </Button>
+                  {o.payment_status === "paid" && (
+                    <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleDownloadNota(o)}>
+                      <Receipt className="h-3.5 w-3.5 mr-1" />Nota
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => openEdit(o)}>
+                    <Pencil className="h-3.5 w-3.5 mr-1" />Edit
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 text-xs text-destructive">
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />Hapus
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Hapus order?</AlertDialogTitle>
+                        <AlertDialogDescription>Data order dan semua item akan dihapus secara permanen.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                        <AlertDialogAction onClick={async () => { try { await deleteOrderMutation.mutateAsync(o.id); toast({ title: "Berhasil", description: "Order dihapus." }); } catch (err) { toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" }); } }}>Hapus</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            ))}
+          </div>
+
           {pageCount > 1 && (
             <div className="mt-4">
               <Pagination>
