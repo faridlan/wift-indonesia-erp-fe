@@ -636,7 +636,7 @@ const Orders = () => {
                     <Card key={index} className="relative">
                       <CardContent className="pt-4 pb-3 px-4">
                         <div className="grid grid-cols-12 gap-3 items-end">
-                          <div className="col-span-5 space-y-1">
+                          <div className="col-span-12 md:col-span-5 space-y-1">
                             <Label className="text-xs">Nama Produk</Label>
                             <Input
                               value={item.product_name}
@@ -645,7 +645,7 @@ const Orders = () => {
                               required
                             />
                           </div>
-                          <div className="col-span-2 space-y-1">
+                          <div className="col-span-4 md:col-span-2 space-y-1">
                             <Label className="text-xs">Qty</Label>
                             <Input
                               type="number"
@@ -657,17 +657,17 @@ const Orders = () => {
                               required
                             />
                           </div>
-                          <div className="col-span-3 space-y-1">
+                          <div className="col-span-8 md:col-span-3 space-y-1">
                             <Label className="text-xs">Harga/Unit</Label>
                             <div className="relative">
-                              {/* Prefix Rp untuk UX yang lebih baik */}
                               <span className="absolute left-3 top-2.5 text-xs text-muted-foreground">Rp</span>
                               <Input
-                                type="text" // Berubah dari number ke text
-                                className="pl-8" // Padding left agar teks tidak bertumpuk dengan 'Rp'
-                                value={formatRupiah(String(item.price_per_unit))} // Format saat ditampilkan
+                                type="text"
+                                inputMode="numeric"
+                                pattern="\\d*"
+                                className="pl-8"
+                                value={formatRupiah(String(item.price_per_unit))}
                                 onChange={(e) => {
-                                  // Ambil hanya angkanya saja sebelum disimpan ke state
                                   const rawValue = e.target.value.replace(/\./g, "");
                                   updateItem(index, "price_per_unit", rawValue);
                                 }}
@@ -676,10 +676,10 @@ const Orders = () => {
                               />
                             </div>
                           </div>
-                          <div className="col-span-1 text-right text-sm font-medium text-muted-foreground pb-2">
+                          <div className="col-span-6 md:col-span-1 text-right text-sm font-medium text-muted-foreground pb-2">
                             {calcSubtotal(item).toLocaleString("id-ID")}
                           </div>
-                          <div className="col-span-1 pb-1">
+                          <div className="col-span-6 md:col-span-1 pb-1 flex justify-end md:justify-center">
                             {items.length > 1 && (
                               <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeItem(index)}>
                                 <X className="h-3 w-3 text-destructive" />
