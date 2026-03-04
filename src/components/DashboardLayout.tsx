@@ -82,10 +82,12 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
               </DrawerHeader>
               <nav className="flex flex-col gap-2 p-4">
                 {navItems.map((item) => (
-                  <Link key={item.to} to={item.to} className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/50">
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                  </Link>
+                  <DrawerClose asChild key={item.to}>
+                    <Link to={item.to} className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/50">
+                      <item.icon className="h-4 w-4" />
+                      {item.label}
+                    </Link>
+                  </DrawerClose>
                 ))}
               </nav>
               <DrawerFooter>

@@ -161,18 +161,24 @@ export function generateInvoicePDF({ order, items, customer }: InvoiceData) {
 
   const subtotal = items.reduce((s, i) => s + i.quantity * i.price_per_unit, 0);
   const ppnPct = (order as any).ppn_percentage ?? (order.include_ppn ? 11 : 0);
-  const ppnAmount = (order as any).ppn_amount ?? (ppnPct > 0 ? Math.round(subtotal * ppnPct / 100) : 0);
+  const ppnAmount =
+    (order as any).ppn_amount ??
+    (ppnPct > 0 ? Math.round((subtotal * ppnPct) / 100) : 0);
 
   let ty = finalY + 10;
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.text("Subtotal", totalsX, ty);
-  doc.text(formatCurrency(subtotal), pageWidth - margin, ty, { align: "right" });
+  doc.text(formatCurrency(subtotal), pageWidth - margin, ty, {
+    align: "right",
+  });
 
   if (ppnPct > 0) {
     ty += 8;
     doc.text(`PPN ${ppnPct}%`, totalsX, ty);
-    doc.text(formatCurrency(ppnAmount), pageWidth - margin, ty, { align: "right" });
+    doc.text(formatCurrency(ppnAmount), pageWidth - margin, ty, {
+      align: "right",
+    });
   }
 
   ty += 8;
@@ -231,12 +237,12 @@ export function generateInvoicePDF({ order, items, customer }: InvoiceData) {
   doc.text("Informasi Pembayaran:", margin, bankY);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
+  doc.setFontSize(7);
   const banks = [
-    "BCA: 1234567890 a/n WIFT INDONESIA",
-    "Mandiri: 0987654321 a/n WIFT INDONESIA",
-    "BNI: 1122334455 a/n WIFT INDONESIA",
-    "BRI: 5544332211 a/n WIFT INDONESIA",
+    "BCA: 054-1447333 a/n CV. WIJAYA FAMILY TASIKMALAYA",
+    "Mandiri: 177-00-1160048-0 a/n CV. WIJAYA FAMILY TASIKMALAYA",
+    "BNI: 1286168970 a/n CV. WIJAYA FAMILY TASIKMALAYA",
+    "BRI: 0161-01-001461-56-4 a/n CV. WIJAYA FAMILY TASIKMALAYA",
   ];
 
   banks.forEach((bank, i) => {
