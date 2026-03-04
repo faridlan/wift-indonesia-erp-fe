@@ -433,7 +433,7 @@ const Orders = () => {
             <DialogTrigger asChild>
               <Button onClick={openCreate} disabled={!activePO}><Plus className="h-4 w-4 mr-2" />Tambah Order</Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editing ? "Edit Order" : "Tambah Order Baru"}</DialogTitle>
               </DialogHeader>
@@ -453,7 +453,7 @@ const Orders = () => {
                   </div>
                 )}
                 {/* Order info */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label>Customer</Label>
@@ -480,6 +480,8 @@ const Orders = () => {
                           <div className="grid grid-cols-2 gap-2">
                             <Input
                               placeholder="Telepon"
+                              inputMode="tel"
+                              pattern="[0-9+ ]*"
                               value={newCustomerForm.phone}
                               onChange={(e) => setNewCustomerForm({ ...newCustomerForm, phone: e.target.value })}
                             />
@@ -625,7 +627,7 @@ const Orders = () => {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <Label className="text-base font-semibold">Item Produk</Label>
-                    <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                    <Button type="button" variant="outline" size="sm" className="w-full" onClick={addItem}>
                       <Plus className="h-3 w-3 mr-1" />Tambah Item
                     </Button>
                   </div>
@@ -647,6 +649,8 @@ const Orders = () => {
                             <Label className="text-xs">Qty</Label>
                             <Input
                               type="number"
+                              inputMode="numeric"
+                              pattern="\\d*"
                               min="1"
                               value={item.quantity}
                               onChange={(e) => updateItem(index, "quantity", e.target.value)}
