@@ -11,12 +11,16 @@ import { Plus, Pencil, Trash2, FileText } from "lucide-react";
 import { generateKwitansiPDF } from "@/lib/generate-kwitansi";
 import type { Tables } from "@/integrations/supabase/types";
 import { formatRupiah } from "@/lib/utils";
+import { useSalesProfiles } from "@/hooks/api/useProfile";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Payment = Tables<"payments">;
 type Order = Tables<"orders">;
 type Customer = Tables<"customers">;
 
 const Payments = () => {
+  const { user, role } = useAuth();
+  const { data: salesProfiles = [] } = useSalesProfiles(role);
   const { toast } = useToast();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -25,6 +29,8 @@ const Payments = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Payment | null>(null);
   const [form, setForm] = useState({ order_id: "", amount: "", payment_method: "", notes: "" });
+
+  const salesName = (id: string | null) => salesProfiles.find((s) => String(s.id) === String(id))?.full_name || "-";
 
   const fetchData = async () => {
     const [paymentsRes, ordersRes, customersRes] = await Promise.all([
@@ -206,6 +212,7 @@ const Payments = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Order</TableHead>
+                  <TableHead>Sales</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Jumlah</TableHead>
                   <TableHead>Metode</TableHead>
@@ -221,6 +228,7 @@ const Payments = () => {
                   return (
                     <TableRow key={p.id}>
                       <TableCell>#{order?.order_number || "-"}</TableCell>
+                      <TableCell>{salesName(order?.sales_id || null)}</TableCell>
                       <TableCell className="font-medium">{customer?.name || "-"}</TableCell>
                       <TableCell>Rp {p.amount.toLocaleString("id-ID")}</TableCell>
                       <TableCell>{p.payment_method || "-"}</TableCell>

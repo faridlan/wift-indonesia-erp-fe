@@ -33,8 +33,13 @@ export function useCreateOrder() {
 
   return useMutation<Order, Error, OrderPayload>({
     mutationFn: createOrder,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY });
+    onSuccess: (newOrder) => {
+      // Add the newly created order to the orders cache so the UI updates immediately
+      queryClient.setQueryData<Order[] | undefined>(ORDERS_QUERY_KEY, (old) => {
+        if (!old) return [newOrder];
+        // Prepend to show newest first (matches existing UI behavior)
+        return [newOrder, ...old];
+      });
     },
   });
 }

@@ -51,6 +51,8 @@ const Customers = () => {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
+  const salesName = (id: string | null) => salesProfiles.find((s) => String(s.id) === String(id))?.full_name || "-";
+
   const isAdminOrSuperadmin = role === "admin" || role === "superadmin";
 
   useEffect(() => {
@@ -137,48 +139,48 @@ const Customers = () => {
             onChange={(e) => setSearch(e.target.value)}
             className="w-full sm:w-64"
           />
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Tambah</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editing ? "Edit Customer" : "Tambah Customer"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {!editing && isAdminOrSuperadmin && (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Tambah</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editing ? "Edit Customer" : "Tambah Customer"}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {!editing && isAdminOrSuperadmin && (
+                  <div className="space-y-2">
+                    <Label>Sales</Label>
+                    <Select value={form.salesId} onValueChange={(v) => setForm({ ...form, salesId: v })} required={isAdminOrSuperadmin}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih sales" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {salesProfiles.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.full_name || s.id}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="space-y-2">
-                  <Label>Sales</Label>
-                  <Select value={form.salesId} onValueChange={(v) => setForm({ ...form, salesId: v })} required={isAdminOrSuperadmin}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih sales" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {salesProfiles.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.full_name || s.id}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Nama</Label>
+                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
                 </div>
-              )}
-              <div className="space-y-2">
-                <Label>Nama</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-              </div>
-              <div className="space-y-2">
-                <Label>Telepon</Label>
-                <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Alamat</Label>
-                <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-              </div>
-              <Button type="submit" className="w-full">{editing ? "Simpan" : "Tambah"}</Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <div className="space-y-2">
+                  <Label>Telepon</Label>
+                  <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Alamat</Label>
+                  <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+                </div>
+                <Button type="submit" className="w-full">{editing ? "Simpan" : "Tambah"}</Button>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -200,6 +202,7 @@ const Customers = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Sales</TableHead>
                   <TableHead>Nama</TableHead>
                   <TableHead>Telepon</TableHead>
                   <TableHead>Alamat</TableHead>
@@ -209,6 +212,7 @@ const Customers = () => {
               <TableBody>
                 {paginatedCustomers.map((c) => (
                   <TableRow key={c.id}>
+                    <TableCell>{salesName(c.sales_id)}</TableCell>
                     <TableCell className="font-medium">{c.name}</TableCell>
                     <TableCell>{c.phone || "-"}</TableCell>
                     <TableCell>{c.address || "-"}</TableCell>

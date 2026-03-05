@@ -35,6 +35,7 @@ export function useCreateOrderItem() {
     mutationFn: createOrderItem,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ORDER_ITEMS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
   });
 }
@@ -46,6 +47,7 @@ export function useUpdateOrderItem() {
     mutationFn: updateOrderItem,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ORDER_ITEMS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
   });
 }
@@ -57,6 +59,7 @@ export function useDeleteOrderItem() {
     mutationFn: deleteOrderItem,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ORDER_ITEMS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
   });
 }

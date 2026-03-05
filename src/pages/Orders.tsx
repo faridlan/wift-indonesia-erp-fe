@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,6 +78,7 @@ const Orders = () => {
   const updateOrderItemMutation = useUpdateOrderItem();
   const deleteOrderItemMutation = useDeleteOrderItem();
   const createCustomerMutation = useCreateCustomer();
+  const queryClient = useQueryClient();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
@@ -90,6 +92,7 @@ const Orders = () => {
 
   // Inline customer creation
   const [showNewCustomer, setShowNewCustomer] = useState(false);
+  const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
   const [newCustomerForm, setNewCustomerForm] = useState({ name: "", phone: "", address: "" });
   const [creatingCustomer, setCreatingCustomer] = useState(false);
 
@@ -331,6 +334,9 @@ const Orders = () => {
           });
         }
 
+        // Refresh orders so any server-side triggers (total, ppn_amount) are reflected
+        await queryClient.invalidateQueries({ queryKey: ["orders"] });
+
         toast({ title: "Berhasil", description: "Order dan item ditambahkan." });
       }
       setDialogOpen(false);
@@ -504,7 +510,7 @@ const Orders = () => {
                       </div>
                     ) : (
                       /* JIKA showNewCustomer FALSE: Tampilkan Dropdown Biasa */
-                      <Popover>
+                      <Popover open={customerPopoverOpen} onOpenChange={setCustomerPopoverOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
@@ -540,6 +546,7 @@ const Orders = () => {
                                     value={c.name} // CommandItem memfilter berdasarkan value ini
                                     onSelect={() => {
                                       setForm({ ...form, customer_id: String(c.id) });
+                                      setCustomerPopoverOpen(false);
                                     }}
                                   >
                                     <Check
@@ -663,8 +670,6 @@ const Orders = () => {
                               <span className="absolute left-3 top-2.5 text-xs text-muted-foreground">Rp</span>
                               <Input
                                 type="text"
-                                inputMode="numeric"
-                                pattern="\\d*"
                                 className="pl-8"
                                 value={formatRupiah(String(item.price_per_unit))}
                                 onChange={(e) => {
@@ -845,10 +850,10 @@ const Orders = () => {
               if (error) {
                 toast({ title: "Error", description: error.message, variant: "destructive" });
               } else {
+                // Invalidate orders so server-updated totals/payment status are fetched
+                await queryClient.invalidateQueries({ queryKey: ["orders"] });
                 toast({ title: "Berhasil", description: "Pembayaran dicatat." });
                 setPaymentDialogOpen(false);
-                // Refresh data
-                // If you use React Query, use queryClient.invalidateQueries(['orders'])
               }
             }}
           >
