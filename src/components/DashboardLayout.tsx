@@ -40,11 +40,14 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   ];
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen w-full bg-background overflow-hidden">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-64 border-r bg-sidebar-background p-4 flex-col">
+      <aside className={cn(
+        "hidden md:flex w-64 border-r bg-sidebar-background p-4 flex-col shrink-0",
+        "h-full"
+      )}>
         <h2 className="mb-6 text-lg font-bold tracking-wider text-sidebar-foreground">WIFT INDONESIA</h2>
-        <nav className="flex-1 space-y-1">
+        <nav className="flex-1 space-y-1 overflow-y-auto pr-2">
           {navItems.map((item) => (
             <Link
               key={item.to}
@@ -61,7 +64,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
             </Link>
           ))}
         </nav>
-        <Button variant="ghost" onClick={signOut} className="justify-start gap-3 mt-4">
+        <Button variant="ghost" onClick={signOut} className="justify-start gap-3 mt-4 shrink-0">
           <LogOut className="h-4 w-4" />
           Logout
         </Button>
