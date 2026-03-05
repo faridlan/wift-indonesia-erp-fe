@@ -51,6 +51,23 @@ const Customers = () => {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  const validate = () => {
+    const newErrors: { [key: string]: string } = {};
+    if (!form.name.trim()) newErrors.name = "Nama customer tidak boleh kosong";
+    // Validasi salesId hanya jika bukan sedang edit (karena saat edit di-freeze)
+    if (!editing && isAdminOrSuperadmin && !form.salesId) {
+      newErrors.salesId = "Pilih sales yang bertanggung jawab";
+    }
+    // Jika telepon diisi, baru divalidasi formatnya
+    if (form.phone && form.phone.length < 8) {
+      newErrors.phone = "Nomor telepon terlalu pendek";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const salesName = (id: string | null) => salesProfiles.find((s) => String(s.id) === String(id))?.full_name || "-";
 
   const isAdminOrSuperadmin = role === "admin" || role === "superadmin";
@@ -99,11 +116,19 @@ const Customers = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 1. Jalankan fungsi validasi yang sudah kita buat sebelumnya
+    if (!validate()) return;
+
     const salesId = isAdminOrSuperadmin ? form.salesId : user!.id;
+
+    // Karena kita sudah punya validasi visual, toast di bawah ini 
+    // sebenarnya sudah ter-cover oleh border merah, tapi tetap aman untuk dijaga.
     if (isAdminOrSuperadmin && !salesId) {
-      toast({ title: "Pilih sales", description: "Sales wajib dipilih.", variant: "destructive" });
+      setErrors(prev => ({ ...prev, salesId: "Sales wajib dipilih." }));
       return;
     }
+
     try {
       if (editing) {
         await updateCustomerMutation.mutateAsync({
@@ -111,6 +136,8 @@ const Customers = () => {
           name: form.name,
           phone: form.phone,
           address: form.address,
+          // salesId biasanya tidak diupdate saat edit customer 
+          // untuk menjaga integritas data histori
         });
         toast({ title: "Berhasil", description: "Customer diperbarui." });
       } else {
@@ -122,9 +149,14 @@ const Customers = () => {
         });
         toast({ title: "Berhasil", description: "Customer ditambahkan." });
       }
+
+      // Reset state setelah berhasil
+      setErrors({});
       setDialogOpen(false);
     } catch (err) {
-      toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
+      // Jika ada error dari server (misal: nomor hp duplikat)
+      const errorMsg = getErrorMessage(err);
+      toast({ title: "Gagal menyimpan", description: errorMsg, variant: "destructive" });
     }
   };
 
@@ -147,12 +179,20 @@ const Customers = () => {
               <DialogHeader>
                 <DialogTitle>{editing ? "Edit Customer" : "Tambah Customer"}</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {!editing && isAdminOrSuperadmin && (
+              <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+                {/* Sales Profile - Tetap muncul saat edit tapi disabled (freeze) */}
+                {isAdminOrSuperadmin && (
                   <div className="space-y-2">
-                    <Label>Sales</Label>
-                    <Select value={form.salesId} onValueChange={(v) => setForm({ ...form, salesId: v })} required={isAdminOrSuperadmin}>
-                      <SelectTrigger>
+                    <Label className={errors.salesId ? "text-destructive" : ""}>Sales</Label>
+                    <Select
+                      value={form.salesId}
+                      onValueChange={(v) => {
+                        setForm({ ...form, salesId: v });
+                        if (errors.salesId) setErrors({ ...errors, salesId: "" });
+                      }}
+                      disabled={!!editing} // Freeze saat mode edit
+                    >
+                      <SelectTrigger className={errors.salesId ? "border-destructive focus:ring-destructive" : ""}>
                         <SelectValue placeholder="Pilih sales" />
                       </SelectTrigger>
                       <SelectContent>
@@ -163,21 +203,55 @@ const Customers = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    {errors.salesId && <p className="text-[11px] text-destructive font-medium">{errors.salesId}</p>}
                   </div>
                 )}
+
+                {/* Nama Customer */}
                 <div className="space-y-2">
-                  <Label>Nama</Label>
-                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+                  <Label className={errors.name ? "text-destructive" : ""}>Nama Customer</Label>
+                  <Input
+                    value={form.name}
+                    onChange={(e) => {
+                      setForm({ ...form, name: e.target.value });
+                      if (errors.name) setErrors({ ...errors, name: "" });
+                    }}
+                    className={errors.name ? "border-destructive focus-visible:ring-destructive" : ""}
+                    placeholder="Contoh: PT. Maju Jaya"
+                  />
+                  {errors.name && <p className="text-[11px] text-destructive font-medium">{errors.name}</p>}
                 </div>
+
+                {/* Telepon - Numeric Keyboard */}
                 <div className="space-y-2">
-                  <Label>Telepon</Label>
-                  <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                  <Label className={errors.phone ? "text-destructive" : ""}>Telepon</Label>
+                  <Input
+                    inputMode="numeric" // Keyboard angka di HP
+                    value={form.phone}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, ""); // Hanya terima angka
+                      setForm({ ...form, phone: val });
+                      if (errors.phone) setErrors({ ...errors, phone: "" });
+                    }}
+                    className={errors.phone ? "border-destructive focus-visible:ring-destructive" : ""}
+                    placeholder="0812xxxx"
+                  />
+                  {errors.phone && <p className="text-[11px] text-destructive font-medium">{errors.phone}</p>}
                 </div>
+
+                {/* Alamat */}
                 <div className="space-y-2">
                   <Label>Alamat</Label>
-                  <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+                  <Input
+                    value={form.address}
+                    onChange={(e) => setForm({ ...form, address: e.target.value })}
+                    placeholder="Alamat lengkap..."
+                  />
                 </div>
-                <Button type="submit" className="w-full">{editing ? "Simpan" : "Tambah"}</Button>
+
+                <Button type="submit" className="w-full mt-2">
+                  {editing ? "Simpan Perubahan" : "Tambah Customer"}
+                </Button>
               </form>
             </DialogContent>
           </Dialog>
@@ -202,7 +276,9 @@ const Customers = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Sales</TableHead>
+                  {/* HANYA MUNCUL JIKA BUKAN SALES */}
+                  {role !== "sales" && <TableHead>Sales</TableHead>}
+
                   <TableHead>Nama</TableHead>
                   <TableHead>Telepon</TableHead>
                   <TableHead>Alamat</TableHead>
@@ -212,7 +288,11 @@ const Customers = () => {
               <TableBody>
                 {paginatedCustomers.map((c) => (
                   <TableRow key={c.id}>
-                    <TableCell>{salesName(c.sales_id)}</TableCell>
+                    {role !== "sales" && (
+                      <TableCell className="font-medium text-primary/80">
+                        {salesName(c.sales_id)}
+                      </TableCell>
+                    )}
                     <TableCell className="font-medium">{c.name}</TableCell>
                     <TableCell>{c.phone || "-"}</TableCell>
                     <TableCell>{c.address || "-"}</TableCell>
@@ -269,6 +349,11 @@ const Customers = () => {
               <div key={c.id} className="rounded-lg border bg-card p-4 space-y-2">
                 <div className="flex items-start justify-between">
                   <div>
+                    {role !== "sales" && (
+                      <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                        Sales: {salesName(c.sales_id)}
+                      </span>
+                    )}
                     <p className="font-semibold text-foreground">{c.name}</p>
                     <p className="text-sm text-muted-foreground">{c.phone || "Tidak ada telepon"}</p>
                   </div>

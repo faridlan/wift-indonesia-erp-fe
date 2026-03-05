@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrders } from "@/hooks/api/useOrders";
@@ -323,39 +322,58 @@ const Reports = () => {
             <CardContent className="px-0 md:px-6">
               <div className="overflow-x-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="bg-muted/30">
                     <TableRow>
-                      <TableHead className="w-10 text-xs">No</TableHead>
-                      <TableHead className="text-xs min-w-[100px]">Sales</TableHead>
-                      <TableHead className="text-right text-xs">Order</TableHead>
-                      <TableHead className="text-right text-xs">PCS</TableHead>
-                      <TableHead className="text-right text-xs min-w-[100px]">Pendapatan</TableHead>
+                      <TableHead className="w-[50px] text-xs uppercase font-bold text-center">No</TableHead>
+                      {role !== "sales" && (
+                        <TableHead className="text-xs uppercase font-bold min-w-[120px]">Sales</TableHead>
+                      )}
+                      <TableHead className="text-right text-xs uppercase font-bold">Order</TableHead>
+                      <TableHead className="text-right text-xs uppercase font-bold">PCS</TableHead>
+                      <TableHead className="text-right text-xs uppercase font-bold min-w-[120px]">Pendapatan</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {salesRows.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8 text-sm">
-                          Belum ada data.
+                        <TableCell
+                          colSpan={role !== "sales" ? 5 : 4}
+                          className="text-center text-muted-foreground py-10 text-sm"
+                        >
+                          Belum ada data transaksi.
                         </TableCell>
                       </TableRow>
                     ) : (
                       <>
                         {salesRows.map((r, i) => (
-                          <TableRow key={r.salesId}>
-                            <TableCell className="text-xs">{i + 1}</TableCell>
-                            <TableCell className="font-medium text-xs">{r.salesName}</TableCell>
-                            <TableCell className="text-right text-xs">{r.totalOrders}</TableCell>
-                            <TableCell className="text-right text-xs">{r.totalPcs.toLocaleString("id-ID")}</TableCell>
-                            <TableCell className="text-right text-xs whitespace-nowrap">Rp {r.totalRevenue.toLocaleString("id-ID")}</TableCell>
+                          <TableRow key={r.salesId} className="hover:bg-muted/50 transition-colors">
+                            <TableCell className="text-center text-xs text-muted-foreground">{i + 1}</TableCell>
+                            {role !== "sales" && (
+                              <TableCell className="font-semibold text-xs tracking-tight">
+                                {r.salesName}
+                              </TableCell>
+                            )}
+                            <TableCell className="text-right text-xs font-mono">{r.totalOrders}</TableCell>
+                            <TableCell className="text-right text-xs font-mono">{r.totalPcs.toLocaleString("id-ID")}</TableCell>
+                            <TableCell className="text-right text-xs font-mono font-medium whitespace-nowrap">
+                              Rp {r.totalRevenue.toLocaleString("id-ID")}
+                            </TableCell>
                           </TableRow>
                         ))}
-                        <TableRow className="bg-muted/50 font-bold">
-                          <TableCell></TableCell>
-                          <TableCell className="text-xs">TOTAL</TableCell>
-                          <TableCell className="text-right text-xs">{totalOrders}</TableCell>
-                          <TableCell className="text-right text-xs">{totalPcs.toLocaleString("id-ID")}</TableCell>
-                          <TableCell className="text-right text-xs whitespace-nowrap">Rp {totalRevenue.toLocaleString("id-ID")}</TableCell>
+
+                        {/* Footer Total */}
+                        <TableRow className="bg-primary/5 font-bold border-t-2">
+                          {/* Gabungkan kolom No dan Sales untuk label TOTAL jika bukan role sales */}
+                          <TableCell colSpan={role !== "sales" ? 2 : 1} className="text-xs text-center py-3">
+                            TOTAL
+                          </TableCell>
+                          <TableCell className="text-right text-xs font-mono">{totalOrders}</TableCell>
+                          <TableCell className="text-right text-xs font-mono text-primary">
+                            {totalPcs.toLocaleString("id-ID")}
+                          </TableCell>
+                          <TableCell className="text-right text-xs font-mono text-primary whitespace-nowrap text-base">
+                            Rp {totalRevenue.toLocaleString("id-ID")}
+                          </TableCell>
                         </TableRow>
                       </>
                     )}

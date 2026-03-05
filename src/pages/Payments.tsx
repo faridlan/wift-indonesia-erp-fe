@@ -32,6 +32,23 @@ const Payments = () => {
 
   const salesName = (id: string | null) => salesProfiles.find((s) => String(s.id) === String(id))?.full_name || "-";
 
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  const validate = () => {
+    const newErrors: { [key: string]: string } = {};
+    if (!form.order_id) newErrors.order_id = "Pilih order terlebih dahulu";
+    if (!form.amount || parseInt(form.amount) <= 0) newErrors.amount = "Masukkan jumlah bayar yang valid";
+    if (!form.payment_method) newErrors.payment_method = "Pilih metode pembayaran";
+
+    // Validasi jika bayar melebihi tagihan (opsional, tergantung kebijakan)
+    if (selectedOrder && parseInt(form.amount) > selectedOrder.total_price) {
+      newErrors.amount = "Jumlah bayar melebihi total tagihan";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const fetchData = async () => {
     const [paymentsRes, ordersRes, customersRes] = await Promise.all([
       supabase.from("payments").select("*").order("created_at", { ascending: false }),
@@ -84,12 +101,20 @@ const Payments = () => {
     fetchData();
   };
 
+  const handleFullPayment = () => {
+    if (selectedOrder) {
+      setForm({ ...form, amount: String(selectedOrder.total_price) });
+      if (errors.amount) setErrors({ ...errors, amount: "" });
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("Hapus pembayaran ini?")) return;
     const { error } = await supabase.from("payments").delete().eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else fetchData();
   };
+
 
   const handleDownloadKwitansi = (p: Payment) => {
     const order = orders.find((o) => o.id === p.order_id);
@@ -122,81 +147,113 @@ const Payments = () => {
               <DialogTitle>{editing ? "Edit Pembayaran" : "Tambah Pembayaran"}</DialogTitle>
             </DialogHeader>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); if (validate()) handleSubmit(e); }} className="space-y-4" noValidate>
+
+              {/* Field Order */}
               <div className="space-y-2">
-                <Label>Order</Label>
-                <Select value={form.order_id} onValueChange={(v) => setForm({ ...form, order_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Pilih order" /></SelectTrigger>
+                <Label className={errors.order_id ? "text-destructive" : ""}>Order</Label>
+                <Select
+                  value={form.order_id}
+                  onValueChange={(v) => {
+                    setForm({ ...form, order_id: v });
+                    if (errors.order_id) setErrors({ ...errors, order_id: "" });
+                  }}
+                >
+                  <SelectTrigger className={errors.order_id ? "border-destructive" : ""}>
+                    <SelectValue placeholder="Pilih order" />
+                  </SelectTrigger>
                   <SelectContent>
                     {orders.map((o) => {
                       const cust = customers.find(c => c.id === o.customer_id);
                       return (
                         <SelectItem key={o.id} value={o.id}>
                           <div className="flex flex-col text-left">
-                            <span className="font-medium">#{o.order_number} - {cust?.name || "No Name"}</span>
-                            <span className="text-xs text-muted-foreground">Total: Rp {o.total_price?.toLocaleString("id-ID")}</span>
+                            <span className="font-medium">#{o.order_number} - {cust?.name}</span>
+                            <span className="text-xs text-muted-foreground">Tagihan: Rp {o.total_price?.toLocaleString("id-ID")}</span>
                           </div>
                         </SelectItem>
                       );
                     })}
                   </SelectContent>
                 </Select>
+                {errors.order_id && <p className="text-[11px] text-destructive font-medium">{errors.order_id}</p>}
               </div>
 
+              {/* Detail Order & Tombol Bayar Lunas */}
               {selectedOrder && (
-                <div className="rounded-lg border bg-muted/40 p-3 text-sm space-y-1 animate-in fade-in zoom-in duration-200">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Customer:</span>
-                    <span className="font-medium">{selectedCustomer?.name || "-"}</span>
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm space-y-2 animate-in fade-in zoom-in duration-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-xs italic">Detail Tagihan:</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[10px] bg-background"
+                      onClick={handleFullPayment}
+                    >
+                      Bayar Lunas
+                    </Button>
                   </div>
-                  <div className="flex justify-between border-t pt-1 mt-1 font-bold text-primary">
+                  <div className="flex justify-between border-t border-primary/10 pt-2 font-bold text-primary">
                     <span>Total Tagihan:</span>
                     <span>Rp {selectedOrder.total_price?.toLocaleString("id-ID")}</span>
                   </div>
                 </div>
               )}
 
+              {/* Jumlah Bayar */}
               <div className="space-y-2">
-                <Label>Jumlah Bayar</Label>
+                <Label className={errors.amount ? "text-destructive" : ""}>Jumlah Bayar</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">Rp</span>
+                  <span className="absolute left-3 top-2.5 text-sm text-muted-foreground font-medium">Rp</span>
                   <Input
                     type="text"
-                    className="pl-9"
+                    inputMode="numeric"
+                    className={`pl-9 ${errors.amount ? "border-destructive focus-visible:ring-destructive" : ""}`}
                     value={formatRupiah(String(form.amount || ""))}
                     onChange={(e) => {
                       const rawValue = e.target.value.replace(/\D/g, "");
                       setForm({ ...form, amount: rawValue });
+                      if (errors.amount) setErrors({ ...errors, amount: "" });
                     }}
                     placeholder="0"
-                    required
                   />
                 </div>
-                {form.amount && (
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    Terinput: {Number(form.amount).toLocaleString("id-ID")}
-                  </p>
-                )}
+                {errors.amount && <p className="text-[11px] text-destructive font-medium">{errors.amount}</p>}
               </div>
 
+              {/* Metode Bayar */}
               <div className="space-y-2">
-                <Label>Metode Bayar</Label>
-                <Select value={form.payment_method} onValueChange={(v) => setForm({ ...form, payment_method: v })}>
-                  <SelectTrigger><SelectValue placeholder="Pilih metode" /></SelectTrigger>
+                <Label className={errors.payment_method ? "text-destructive" : ""}>Metode Bayar</Label>
+                <Select
+                  value={form.payment_method}
+                  onValueChange={(v) => {
+                    setForm({ ...form, payment_method: v });
+                    if (errors.payment_method) setErrors({ ...errors, payment_method: "" });
+                  }}
+                >
+                  <SelectTrigger className={errors.payment_method ? "border-destructive" : ""}>
+                    <SelectValue placeholder="Pilih metode" />
+                  </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="transfer">Transfer</SelectItem>
+                    <SelectItem value="cash">Cash (Tunai)</SelectItem>
+                    <SelectItem value="transfer">Transfer Bank</SelectItem>
                     <SelectItem value="other">Lainnya</SelectItem>
                   </SelectContent>
                 </Select>
+                {errors.payment_method && <p className="text-[11px] text-destructive font-medium">{errors.payment_method}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label>Catatan</Label>
-                <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+                <Label>Catatan (Opsional)</Label>
+                <Input
+                  placeholder="Contoh: Transfer via BCA / Titipan DP"
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                />
               </div>
 
-              <Button type="submit" className="w-full">
+              <Button type="submit" className="w-full h-11 text-base shadow-md mt-4">
                 {editing ? "Simpan Perubahan" : "Konfirmasi Pembayaran"}
               </Button>
             </form>
@@ -212,7 +269,7 @@ const Payments = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Order</TableHead>
-                  <TableHead>Sales</TableHead>
+                  {role !== "sales" && <TableHead>Sales</TableHead>}
                   <TableHead>Customer</TableHead>
                   <TableHead>Jumlah</TableHead>
                   <TableHead>Metode</TableHead>
@@ -228,7 +285,9 @@ const Payments = () => {
                   return (
                     <TableRow key={p.id}>
                       <TableCell>#{order?.order_number || "-"}</TableCell>
-                      <TableCell>{salesName(order?.sales_id || null)}</TableCell>
+                      {role !== "sales" && (
+                        <TableCell>{salesName(order?.sales_id || null)}</TableCell>
+                      )}
                       <TableCell className="font-medium">{customer?.name || "-"}</TableCell>
                       <TableCell>Rp {p.amount.toLocaleString("id-ID")}</TableCell>
                       <TableCell>{p.payment_method || "-"}</TableCell>
