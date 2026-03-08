@@ -10,6 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 
 const formatRp = (v: number) => `Rp ${v.toLocaleString("id-ID")}`;
+const formatRpCompact = (v: number) => {
+  if (v >= 1_000_000_000) return `Rp ${(v / 1_000_000_000).toFixed(1).replace('.0', '')} M`;
+  if (v >= 1_000_000) return `Rp ${(v / 1_000_000).toFixed(1).replace('.0', '')} Jt`;
+  if (v >= 1_000) return `Rp ${(v / 1_000).toFixed(0)} Rb`;
+  return formatRp(v);
+};
 
 const Dashboard = () => {
   const { user, role } = useAuth();
