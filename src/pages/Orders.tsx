@@ -126,9 +126,16 @@ const Orders = () => {
     return selectedPOTab; // PO period id
   }, [selectedPOTab, activePO]);
 
-  // Other PO periods (not the active one)
-  const otherPOPeriods = useMemo(() => {
-    return allPOPeriods.filter(p => p.id !== activePO?.id);
+  // Only show PO periods from the current month (besides active PO)
+  const currentMonthPOPeriods = useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0-indexed
+    return allPOPeriods.filter(p => {
+      if (p.id === activePO?.id) return false; // active PO already shown separately
+      const startDate = new Date(p.start_date);
+      return startDate.getFullYear() === currentYear && startDate.getMonth() === currentMonth;
+    });
   }, [allPOPeriods, activePO]);
 
   // Payment 
