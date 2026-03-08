@@ -33,7 +33,7 @@ const Users = () => {
   const updateRoleMutation = useUpdateProfileRole();
   const updatePositionMutation = useUpdateProfilePosition();
 
-  const [form, setForm] = useState({ username: "", password: "", full_name: "", role: "sales" as "sales" | "admin" });
+  const [form, setForm] = useState({ username: "", password: "", full_name: "", position: "", role: "sales" as "sales" | "admin" });
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
