@@ -47,6 +47,16 @@ export function useUpdateProfileRole() {
   });
 }
 
+export function useUpdateProfilePosition() {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, { profileId: string; position: string }>({
+    mutationFn: ({ profileId, position }) => updateProfilePosition(profileId, position),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ALL_PROFILES_QUERY_KEY });
+    },
+  });
+}
+
 export function useUpdateProfileFullName(userId: string | undefined) {
   const queryClient = useQueryClient();
 
