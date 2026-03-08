@@ -313,7 +313,7 @@ const Users = () => {
                   ))}
                   {profiles.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground">Belum ada user.</TableCell>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">Belum ada user.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
