@@ -239,6 +239,9 @@ const Orders = () => {
       salesId: o.sales_id ? String(o.sales_id) : "",
       shipping_type: (o as any).shipping_type || "cod",
       shipping_cost: String((o as any).shipping_cost || ""),
+      expedition_name: (o as any).expedition_name || "",
+      weight_kg: String((o as any).weight_kg || ""),
+      dp_amount: "",
     });
     const existingItems = allOrderItems
       .filter((i) => i.order_id === o.id)
