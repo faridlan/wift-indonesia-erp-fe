@@ -295,23 +295,27 @@ export function generateInvoicePDF({ order, items, customer, options }: InvoiceD
   });
 
   try {
-    doc.addImage(
-      "/assets/ttd-manager.png",
-      "PNG",
-      pageWidth - margin - 45,
-      sigY + 8,
-      40,
-      20,
-    );
+    if (withSignature) {
+      doc.addImage(
+        "/assets/ttd-manager.png",
+        "PNG",
+        pageWidth - margin - 45,
+        sigY + 8,
+        40,
+        20,
+      );
+    }
 
-    doc.addImage(
-      "/assets/stempel-wift.png",
-      "PNG",
-      pageWidth - margin - 55,
-      sigY + 5,
-      30,
-      30,
-    );
+    if (withStamp) {
+      doc.addImage(
+        "/assets/stempel-wift.png",
+        "PNG",
+        pageWidth - margin - 55,
+        sigY + 5,
+        30,
+        30,
+      );
+    }
   } catch (e) {
     console.error("Gagal memuat gambar tanda tangan/stempel", e);
   }
