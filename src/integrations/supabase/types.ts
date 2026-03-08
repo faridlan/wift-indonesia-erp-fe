@@ -384,6 +384,7 @@ export type Database = {
           id: string
           image_url: string | null
           meta_pixel_id: string | null
+          password_changed: boolean
           phone_number: string | null
           position: string | null
           role: string | null
@@ -396,6 +397,7 @@ export type Database = {
           id: string
           image_url?: string | null
           meta_pixel_id?: string | null
+          password_changed?: boolean
           phone_number?: string | null
           position?: string | null
           role?: string | null
@@ -408,6 +410,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           meta_pixel_id?: string | null
+          password_changed?: boolean
           phone_number?: string | null
           position?: string | null
           role?: string | null
