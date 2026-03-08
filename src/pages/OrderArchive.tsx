@@ -22,6 +22,7 @@ import { useOrderItems } from "@/hooks/api/useOrderItems";
 import { usePOPeriods } from "@/hooks/api/usePOPeriods";
 import { useSalesProfiles } from "@/hooks/api/useProfile";
 import { generateInvoicePDF } from "@/lib/generate-invoice";
+import { getBankAccountsBySalesId } from "@/services/bank-accounts";
 import { generateNotaPDF } from "@/lib/generate-nota";
 import { useToast } from "@/hooks/use-toast";
 import type { Order } from "@/services/orders";
@@ -168,12 +169,16 @@ const OrderArchive = () => {
     setInvoiceOptionsOpen(true);
   };
 
-  const handleDownloadInvoice = () => {
+  const handleDownloadInvoice = async () => {
     if (!invoiceTargetOrder) return;
     const o = invoiceTargetOrder;
     const orderItems = allOrderItems.filter((i) => i.order_id === o.id);
     const customer = customers.find((c) => c.id === o.customer_id) || null;
-    generateInvoicePDF({ order: o, items: orderItems, customer, options: invoiceOpts });
+    let personalBankAccounts: { bank_name: string; account_number: string; account_holder: string }[] = [];
+    try {
+      personalBankAccounts = await getBankAccountsBySalesId(o.sales_id);
+    } catch { /* ignore */ }
+    generateInvoicePDF({ order: o, items: orderItems, customer, options: invoiceOpts, personalBankAccounts });
     toast({ title: "Berhasil", description: `Invoice #${o.order_number} berhasil diunduh.` });
     setInvoiceOptionsOpen(false);
   };

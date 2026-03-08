@@ -12,11 +12,18 @@ export interface InvoiceOptions {
   withSignature: boolean;
 }
 
+export interface PersonalBankAccount {
+  bank_name: string;
+  account_number: string;
+  account_holder: string;
+}
+
 interface InvoiceData {
   order: Order;
   items: OrderItem[];
   customer: Customer | null;
   options?: InvoiceOptions;
+  personalBankAccounts?: PersonalBankAccount[];
 }
 
 const COMPANY = {
@@ -41,7 +48,7 @@ const formatDate = (dateStr: string | null) => {
   });
 };
 
-export function generateInvoicePDF({ order, items, customer, options }: InvoiceData) {
+export function generateInvoicePDF({ order, items, customer, options, personalBankAccounts }: InvoiceData) {
   const { withStamp = true, withSignature = true } = options || {};
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -260,12 +267,24 @@ export function generateInvoicePDF({ order, items, customer, options }: InvoiceD
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  const banks = [
-    "BCA: 054-1447333 a/n CV. WIJAYA FAMILY TASIKMALAYA",
-    "Mandiri: 177-00-1160048-0 a/n CV. WIJAYA FAMILY TASIKMALAYA",
-    "BNI: 1286168970 a/n CV. WIJAYA FAMILY TASIKMALAYA",
-    "BRI: 0161-01-001461-56-4 a/n CV. WIJAYA FAMILY TASIKMALAYA",
-  ];
+
+  const usePPN = (order as any).ppn_percentage > 0 || order.include_ppn;
+  let banks: string[];
+
+  if (!usePPN && personalBankAccounts && personalBankAccounts.length > 0) {
+    // Non-PPN: use personal bank accounts
+    banks = personalBankAccounts.map(
+      (b) => `${b.bank_name}: ${b.account_number} a/n ${b.account_holder}`
+    );
+  } else {
+    // PPN or no personal accounts: use company bank accounts
+    banks = [
+      "BCA: 054-1447333 a/n CV. WIJAYA FAMILY TASIKMALAYA",
+      "Mandiri: 177-00-1160048-0 a/n CV. WIJAYA FAMILY TASIKMALAYA",
+      "BNI: 1286168970 a/n CV. WIJAYA FAMILY TASIKMALAYA",
+      "BRI: 0161-01-001461-56-4 a/n CV. WIJAYA FAMILY TASIKMALAYA",
+    ];
+  }
 
   banks.forEach((bank, i) => {
     doc.text(bank, margin, bankY + 6 + i * 5);

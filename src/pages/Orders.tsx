@@ -36,6 +36,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, X, Eye, FileDown, Receipt, UserPlus, Loader2, AlertCircle, Package } from "lucide-react";
 import { generateInvoicePDF, type InvoiceOptions } from "@/lib/generate-invoice";
+import { getBankAccountsBySalesId } from "@/services/bank-accounts";
 import { generateNotaPDF } from "@/lib/generate-nota";
 import {
   useCreateOrder,
@@ -272,12 +273,16 @@ const Orders = () => {
     setInvoiceOptionsOpen(true);
   };
 
-  const handleDownloadInvoice = () => {
+  const handleDownloadInvoice = async () => {
     if (!invoiceTargetOrder) return;
     const o = invoiceTargetOrder;
     const orderItems = allOrderItems.filter((i) => i.order_id === o.id);
     const customer = customers.find((c) => c.id === o.customer_id) || null;
-    generateInvoicePDF({ order: o, items: orderItems, customer, options: invoiceOpts });
+    let personalBankAccounts: { bank_name: string; account_number: string; account_holder: string }[] = [];
+    try {
+      personalBankAccounts = await getBankAccountsBySalesId(o.sales_id);
+    } catch { /* ignore */ }
+    generateInvoicePDF({ order: o, items: orderItems, customer, options: invoiceOpts, personalBankAccounts });
     toast({ title: "Berhasil", description: `Invoice #${o.order_number} berhasil diunduh.` });
     setInvoiceOptionsOpen(false);
   };
