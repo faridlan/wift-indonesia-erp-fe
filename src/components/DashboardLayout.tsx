@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Users, ShoppingCart, Package, CreditCard, User, LogOut, Home, UserCog, CalendarRange, BarChart, Menu } from "lucide-react";
+import { Users, ShoppingCart, Package, CreditCard, User, LogOut, Home, UserCog, CalendarRange, BarChart, Menu, Tags, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Drawer,
