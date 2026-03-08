@@ -188,12 +188,11 @@ const Users = () => {
 
       {/* Create User Form */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <UserPlus className="h-5 w-5" />
             Tambah User Baru
           </CardTitle>
-          <p className="text-sm text-muted-foreground">Buat akun baru dengan username dan password.</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleCreateUser} className="space-y-3">
