@@ -274,6 +274,7 @@ const Users = () => {
                     <TableHead>Jabatan</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead className="w-48">Ubah Role</TableHead>
+                    <TableHead className="w-24">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -297,6 +298,16 @@ const Users = () => {
                             ))}
                           </SelectContent>
                         </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setResetTarget({ id: p.id, name: getDisplayName(p) })}
+                        >
+                          <KeyRound className="h-3.5 w-3.5 mr-1.5" />
+                          Reset
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
