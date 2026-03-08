@@ -12,11 +12,18 @@ export interface InvoiceOptions {
   withSignature: boolean;
 }
 
+export interface PersonalBankAccount {
+  bank_name: string;
+  account_number: string;
+  account_holder: string;
+}
+
 interface InvoiceData {
   order: Order;
   items: OrderItem[];
   customer: Customer | null;
   options?: InvoiceOptions;
+  personalBankAccounts?: PersonalBankAccount[];
 }
 
 const COMPANY = {
