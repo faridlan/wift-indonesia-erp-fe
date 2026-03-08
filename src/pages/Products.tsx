@@ -50,7 +50,6 @@ const Products = () => {
       category_id: product.category_id || "",
       description: product.description || "",
       image_url: product.image_url || "",
-      size_chart_url: product.size_chart_url || "",
     });
     setDialogOpen(true);
   };
