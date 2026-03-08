@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN meta_pixel_id text;
