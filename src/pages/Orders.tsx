@@ -55,6 +55,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn, formatRupiah, compactRupiah, shortStatus, formatShortDate } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type ItemForm = {
   id?: string;
@@ -998,9 +999,21 @@ const Orders = () => {
                 <div><span className="text-muted-foreground">Customer:</span> {customerName(detailOrder.customer_id)}</div>
                 <div><span className="text-muted-foreground">Sales:</span> {salesName(detailOrder.sales_id)}</div>
                 <div><span className="text-muted-foreground">Status:</span> <Badge variant={statusColor(detailOrder.status)}>{detailOrder.status}</Badge></div>
-                <div><span className="text-muted-foreground">Total:</span> Rp {(detailOrder.total_price || 0).toLocaleString("id-ID")}</div>
-                <div><span className="text-muted-foreground">Bayar:</span> Rp {(detailOrder.amount_paid || 0).toLocaleString("id-ID")}</div>
                 <div><span className="text-muted-foreground">PPN:</span> {(detailOrder as any).ppn_percentage > 0 ? `Ya (${(detailOrder as any).ppn_percentage}%) — Rp ${((detailOrder as any).ppn_amount || 0).toLocaleString("id-ID")}` : "Tidak"}</div>
+                <div><span className="text-muted-foreground">Ongkir:</span> {detailOrder.shipping_type === "non_cod" ? `Rp ${(detailOrder.shipping_cost || 0).toLocaleString("id-ID")}` : "COD"}</div>
+                {detailOrder.shipping_type === "non_cod" && detailOrder.expedition_name && (
+                  <div><span className="text-muted-foreground">Ekspedisi:</span> {detailOrder.expedition_name}{detailOrder.weight_kg ? ` (${detailOrder.weight_kg} kg)` : ""}</div>
+                )}
+              </div>
+              <Separator />
+              <div className="rounded-lg bg-muted/50 p-3 space-y-1 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">Subtotal Item</span><span>Rp {((detailOrder.total_price || 0) - ((detailOrder as any).ppn_amount || 0) - (detailOrder.shipping_cost || 0)).toLocaleString("id-ID")}</span></div>
+                {detailOrder.shipping_cost > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Ongkir</span><span>Rp {detailOrder.shipping_cost.toLocaleString("id-ID")}</span></div>}
+                {(detailOrder as any).ppn_amount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">PPN ({(detailOrder as any).ppn_percentage}%)</span><span>Rp {((detailOrder as any).ppn_amount || 0).toLocaleString("id-ID")}</span></div>}
+                <Separator className="my-1" />
+                <div className="flex justify-between font-bold"><span>Total</span><span>Rp {(detailOrder.total_price || 0).toLocaleString("id-ID")}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Dibayar</span><span>Rp {(detailOrder.amount_paid || 0).toLocaleString("id-ID")}</span></div>
+                <div className="flex justify-between font-bold text-destructive"><span>Sisa</span><span>Rp {((detailOrder.total_price || 0) - (detailOrder.amount_paid || 0)).toLocaleString("id-ID")}</span></div>
               </div>
               <Separator />
               <div>
@@ -1318,8 +1331,34 @@ const Orders = () => {
                     <TableCell className="text-center font-medium">{pcsPerOrder[o.id] || 0}</TableCell>
                     <TableCell><Badge variant={statusColor(o.status)} className="text-[10px] px-1.5">{shortStatus(o.status)}</Badge></TableCell>
                     <TableCell className="text-xs">{(o as any).ppn_percentage > 0 ? `${(o as any).ppn_percentage}%` : "-"}</TableCell>
-                    <TableCell className="text-right text-sm font-medium">{compactRupiah(o.total_price || 0)}</TableCell>
-                    <TableCell className="text-right text-sm">{compactRupiah(o.amount_paid || 0)}</TableCell>
+                    <TableCell className="text-right text-sm font-medium">
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dashed border-muted-foreground/40">{compactRupiah(o.total_price || 0)}</span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs space-y-0.5">
+                            <p>Subtotal Item: Rp {((o.total_price || 0) - (o.ppn_amount || 0) - (o.shipping_cost || 0)).toLocaleString("id-ID")}</p>
+                            {o.shipping_cost > 0 && <p>Ongkir: Rp {o.shipping_cost.toLocaleString("id-ID")}</p>}
+                            {(o as any).ppn_amount > 0 && <p>PPN ({(o as any).ppn_percentage}%): Rp {((o as any).ppn_amount || 0).toLocaleString("id-ID")}</p>}
+                            <p className="font-bold border-t border-border pt-0.5">Total: Rp {(o.total_price || 0).toLocaleString("id-ID")}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </TableCell>
+                    <TableCell className="text-right text-sm">
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dashed border-muted-foreground/40">{compactRupiah(o.amount_paid || 0)}</span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs space-y-0.5">
+                            <p>Dibayar: Rp {(o.amount_paid || 0).toLocaleString("id-ID")}</p>
+                            <p>Sisa: Rp {((o.total_price || 0) - (o.amount_paid || 0)).toLocaleString("id-ID")}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </TableCell>
                     <TableCell><Badge variant={o.payment_status === "paid" ? "default" : "outline"} className="text-[10px] px-1.5">{o.payment_status}</Badge></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
