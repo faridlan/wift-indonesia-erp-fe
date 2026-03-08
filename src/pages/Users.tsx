@@ -351,6 +351,15 @@ const Users = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setResetTarget({ id: p.id, name: getDisplayName(p) })}
+                  >
+                    <KeyRound className="h-3.5 w-3.5 mr-1.5" />
+                    Reset Password
+                  </Button>
                 </Card>
               ))}
               {profiles.length === 0 && (
@@ -360,6 +369,43 @@ const Users = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Reset Password Dialog */}
+      <Dialog open={!!resetTarget} onOpenChange={(open) => { if (!open) { setResetTarget(null); setResetPassword(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Reset password untuk <strong>{resetTarget?.name}</strong>. User akan diminta setup ulang saat login berikutnya.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>Password Baru</Label>
+            <div className="relative">
+              <Input
+                type={showResetPassword ? "text" : "password"}
+                placeholder="Minimal 6 karakter"
+                value={resetPassword}
+                onChange={(e) => setResetPassword(e.target.value)}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowResetPassword(!showResetPassword)}
+                className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+              >
+                {showResetPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setResetTarget(null); setResetPassword(""); }}>Batal</Button>
+            <Button onClick={handleResetPassword} disabled={resetting}>
+              {resetting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Mereset...</> : "Reset Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
