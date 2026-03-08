@@ -18,6 +18,7 @@ const baseNavItems = [
   { to: "/dashboard/customers", label: "Customers", icon: Users },
   { to: "/dashboard/orders", label: "Orders", icon: ShoppingCart },
   { to: "/dashboard/payments", label: "Payments", icon: CreditCard },
+  { to: "/dashboard/leads", label: "Leads", icon: Target },
   { to: "/dashboard/reports", label: "Reports", icon: BarChart },
   { to: "/dashboard/profile", label: "Profile", icon: User },
 ];
