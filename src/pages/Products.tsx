@@ -269,21 +269,19 @@ const Products = () => {
               <input ref={mainImageRef} type="file" accept="image/*" className="hidden" onChange={handleMainImage} />
             </div>
 
-            {/* Size Chart Upload */}
-            <div className="space-y-2">
-              <Label>Size Chart</Label>
-              {form.size_chart_url && (
-                <div className="relative w-32">
-                  <img src={form.size_chart_url} alt="Size Chart" className="h-32 w-32 rounded object-cover" />
-                  <button type="button" onClick={() => setForm({ ...form, size_chart_url: "" })} className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1"><X className="h-3 w-3" /></button>
+            {/* Size Chart Info */}
+            {form.category_id && (() => {
+              const cat = categories.find(c => c.id === form.category_id);
+              const chartUrl = (cat as any)?.size_chart_url;
+              return chartUrl ? (
+                <div className="space-y-1">
+                  <Label>Size Chart (dari kategori)</Label>
+                  <a href={chartUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm flex items-center gap-1">
+                    <ImageIcon className="h-4 w-4" /> Lihat Size Chart
+                  </a>
                 </div>
-              )}
-              <Button type="button" variant="outline" size="sm" onClick={() => sizeChartRef.current?.click()} disabled={uploadingChart}>
-                {uploadingChart ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
-                Upload Size Chart
-              </Button>
-              <input ref={sizeChartRef} type="file" accept="image/*" className="hidden" onChange={handleSizeChart} />
-            </div>
+              ) : null;
+            })()}
           </div>
           <DialogFooter className="gap-2">
             <DialogClose asChild><Button variant="outline">Batal</Button></DialogClose>
