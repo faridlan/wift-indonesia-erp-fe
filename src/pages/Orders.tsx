@@ -35,7 +35,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, X, Eye, FileDown, Receipt, UserPlus, Loader2, AlertCircle, Package } from "lucide-react";
-import { generateInvoicePDF } from "@/lib/generate-invoice";
+import { generateInvoicePDF, type InvoiceOptions } from "@/lib/generate-invoice";
 import { generateNotaPDF } from "@/lib/generate-nota";
 import {
   useCreateOrder,
