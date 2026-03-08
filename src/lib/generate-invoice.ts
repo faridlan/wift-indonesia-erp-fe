@@ -164,6 +164,10 @@ export function generateInvoicePDF({ order, items, customer }: InvoiceData) {
   const ppnAmount =
     (order as any).ppn_amount ??
     (ppnPct > 0 ? Math.round((subtotal * ppnPct) / 100) : 0);
+  const shippingType = (order as any).shipping_type || "cod";
+  const shippingCost = (order as any).shipping_cost || 0;
+  const expeditionName = (order as any).expedition_name || "";
+  const weightKg = (order as any).weight_kg || 0;
 
   let ty = finalY + 10;
   doc.setFontSize(9);
@@ -177,6 +181,17 @@ export function generateInvoicePDF({ order, items, customer }: InvoiceData) {
     ty += 8;
     doc.text(`PPN ${ppnPct}%`, totalsX, ty);
     doc.text(formatCurrency(ppnAmount), pageWidth - margin, ty, {
+      align: "right",
+    });
+  }
+
+  if (shippingType === "non_cod" && shippingCost > 0) {
+    ty += 8;
+    const shippingLabel = expeditionName
+      ? `Ongkir (${expeditionName}${weightKg > 0 ? ` ${weightKg}kg` : ""})`
+      : "Ongkir";
+    doc.text(shippingLabel, totalsX, ty);
+    doc.text(formatCurrency(shippingCost), pageWidth - margin, ty, {
       align: "right",
     });
   }
