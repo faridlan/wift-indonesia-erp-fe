@@ -788,12 +788,15 @@ const Orders = () => {
                           </Button>
                         )}
 
-                        <CardContent className="pt-6 pb-3 px-4">
-                          <div className="grid grid-cols-12 gap-x-3 gap-y-4 items-start">
+                        <CardContent className="pt-4 pb-2 px-3 md:pt-3 md:pb-2 md:px-3">
+                          <div className="grid grid-cols-12 gap-x-2 gap-y-3 md:gap-y-1 items-start">
 
                             {/* 1. Nama Produk */}
-                            <div className="col-span-12 md:col-span-6 space-y-1">
-                              <Label className={cn("text-[10px] font-medium", itemError?.product_name ? "text-destructive" : "text-muted-foreground")}>
+                            <div className="col-span-12 md:col-span-4 space-y-0.5">
+                              <Label className={cn("text-[10px] font-medium hidden md:block", itemError?.product_name ? "text-destructive" : "text-muted-foreground")}>
+                                Produk
+                              </Label>
+                              <Label className={cn("text-[10px] font-medium md:hidden", itemError?.product_name ? "text-destructive" : "text-muted-foreground")}>
                                 Nama Produk
                               </Label>
                               <Input
@@ -806,29 +809,29 @@ const Orders = () => {
                                     setErrors({ ...errors, items: newItemsErr });
                                   }
                                 }}
-                                placeholder="Contoh: Kemeja, Celana, dll"
-                                className={cn("h-9", itemError?.product_name && "border-destructive focus-visible:ring-destructive")}
+                                placeholder="Kemeja, Celana, dll"
+                                className={cn("h-8 text-sm", itemError?.product_name && "border-destructive focus-visible:ring-destructive")}
                               />
                               {itemError?.product_name && (
                                 <p className="text-[9px] text-destructive font-bold uppercase tracking-tight">{itemError.product_name}</p>
                               )}
                             </div>
 
-                            {/* 2. Jenis Pengerjaan */}
-                            <div className="col-span-12 md:col-span-6 space-y-1">
+                            {/* 2. Pengerjaan */}
+                            <div className="col-span-6 md:col-span-2 space-y-0.5">
                               <Label className="text-[10px] font-medium text-muted-foreground">Pengerjaan</Label>
-                              <div className="flex items-center gap-2">
-                                <Badge variant={item.work_type === "wift" ? "default" : "outline"} className="cursor-pointer text-xs" onClick={() => updateItem(index, "work_type", "wift")}>
+                              <div className="flex items-center gap-1 pt-0.5">
+                                <Badge variant={item.work_type === "wift" ? "default" : "outline"} className="cursor-pointer text-[10px] px-2 py-0" onClick={() => updateItem(index, "work_type", "wift")}>
                                   WIFT
                                 </Badge>
-                                <Badge variant={item.work_type === "luar" ? "default" : "outline"} className="cursor-pointer text-xs" onClick={() => updateItem(index, "work_type", "luar")}>
+                                <Badge variant={item.work_type === "luar" ? "default" : "outline"} className="cursor-pointer text-[10px] px-2 py-0" onClick={() => updateItem(index, "work_type", "luar")}>
                                   Luar
                                 </Badge>
                               </div>
                             </div>
 
                             {/* 3. Qty */}
-                            <div className="col-span-4 md:col-span-2 space-y-1">
+                            <div className="col-span-3 md:col-span-1 space-y-0.5">
                               <Label className={cn("text-[10px] font-medium", itemError?.quantity ? "text-destructive" : "text-muted-foreground")}>
                                 Qty
                               </Label>
@@ -844,23 +847,23 @@ const Orders = () => {
                                     setErrors({ ...errors, items: newItemsErr });
                                   }
                                 }}
-                                className={cn("h-9", itemError?.quantity && "border-destructive focus-visible:ring-destructive")}
+                                className={cn("h-8 text-sm", itemError?.quantity && "border-destructive focus-visible:ring-destructive")}
                               />
                             </div>
 
-                            {/* 3. Harga/Unit */}
-                            <div className="col-span-8 md:col-span-4 space-y-1">
+                            {/* 4. Harga/Unit */}
+                            <div className="col-span-6 md:col-span-3 space-y-0.5">
                               <Label className={cn("text-[10px] font-medium", itemError?.price_per_unit ? "text-destructive" : "text-muted-foreground")}>
                                 Harga/Unit
                               </Label>
                               <div className="relative">
-                                <span className={cn("absolute left-2.5 top-2 text-[10px] font-medium", itemError?.price_per_unit ? "text-destructive" : "text-muted-foreground")}>
+                                <span className={cn("absolute left-2 top-1.5 text-[10px] font-medium", itemError?.price_per_unit ? "text-destructive" : "text-muted-foreground")}>
                                   Rp
                                 </span>
                                 <Input
                                   type="text"
                                   inputMode="numeric"
-                                  className={cn("pl-7 h-9", itemError?.price_per_unit && "border-destructive focus-visible:ring-destructive")}
+                                  className={cn("pl-6 h-8 text-sm", itemError?.price_per_unit && "border-destructive focus-visible:ring-destructive")}
                                   value={formatRupiah(String(item.price_per_unit))}
                                   onChange={(e) => {
                                     const rawValue = e.target.value.replace(/\D/g, "");
@@ -876,22 +879,14 @@ const Orders = () => {
                               </div>
                             </div>
 
-                            {/* 4. Subtotal & Error Messages Row */}
-                            <div className="col-span-12 -mt-1 md:mt-1 flex flex-row justify-between items-center">
-                              <div>
-                                {itemError?.price_per_unit && (
-                                  <p className="text-[9px] text-destructive font-bold uppercase tracking-tight">Harga Wajib Isi</p>
-                                )}
-                              </div>
-
-                              <div className="flex flex-row items-center gap-1.5">
-                                <span className="text-[9px] uppercase font-bold tracking-tight text-muted-foreground/70">Subtotal:</span>
-                                <div className="flex items-baseline font-bold text-sm text-foreground">
-                                  <span className="text-[10px] mr-0.5 font-medium">Rp</span>
-                                  <span className="whitespace-nowrap">
-                                    {calcSubtotal(item).toLocaleString("id-ID")}
-                                  </span>
-                                </div>
+                            {/* 5. Subtotal */}
+                            <div className="col-span-3 md:col-span-2 flex items-end justify-end md:pb-0.5">
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-[9px] text-muted-foreground/70 font-medium hidden md:inline">Sub:</span>
+                                <span className="text-[10px] mr-0.5 font-medium text-muted-foreground">Rp</span>
+                                <span className="text-sm font-bold whitespace-nowrap">
+                                  {calcSubtotal(item).toLocaleString("id-ID")}
+                                </span>
                               </div>
                             </div>
 
