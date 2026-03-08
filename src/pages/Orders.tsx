@@ -365,6 +365,8 @@ const Orders = () => {
           poPeriodId: activePO?.id,
           shippingType: form.shipping_type,
           shippingCost: form.shipping_type === "non_cod" ? (parseInt(form.shipping_cost) || 0) : 0,
+          expeditionName: form.shipping_type === "non_cod" ? form.expedition_name : undefined,
+          weightKg: form.shipping_type === "non_cod" ? (parseFloat(form.weight_kg) || undefined) : undefined,
         });
 
         // Insert Items
@@ -375,6 +377,16 @@ const Orders = () => {
             quantity: parseInt(item.quantity),
             pricePerUnit: parseInt(item.price_per_unit),
             workType: item.work_type,
+          });
+        }
+
+        // Insert DP payment if provided
+        if (form.dp_amount && parseInt(form.dp_amount) > 0) {
+          await supabase.from("payments").insert({
+            order_id: newOrder.id,
+            amount: parseInt(form.dp_amount),
+            payment_method: "cash",
+            notes: "DP Awal",
           });
         }
       }
