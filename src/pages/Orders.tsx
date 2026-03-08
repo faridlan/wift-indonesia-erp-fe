@@ -237,6 +237,8 @@ const Orders = () => {
       ppn_percentage: String(pct > 0 ? pct : 11),
       ppn_custom: isCustom,
       salesId: o.sales_id ? String(o.sales_id) : "",
+      shipping_type: (o as any).shipping_type || "cod",
+      shipping_cost: String((o as any).shipping_cost || ""),
     });
     const existingItems = allOrderItems
       .filter((i) => i.order_id === o.id)
@@ -245,6 +247,7 @@ const Orders = () => {
         product_name: i.product_name,
         quantity: String(i.quantity),
         price_per_unit: String(i.price_per_unit),
+        work_type: (i as any).work_type || "wift",
       }));
     setItems(existingItems.length > 0 ? existingItems : [emptyItem()]);
     setShowNewCustomer(false);
