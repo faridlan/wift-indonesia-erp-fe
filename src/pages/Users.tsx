@@ -6,11 +6,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAllProfiles, useUpdateProfileRole, useUpdateProfilePosition } from "@/hooks/api/useProfile";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, UserPlus, Eye, EyeOff, Pencil, Check, X } from "lucide-react";
+import { Loader2, UserPlus, Eye, EyeOff, Pencil, Check, X, KeyRound } from "lucide-react";
 import { createUser } from "@/services/invite-user";
 import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const ROLES = [
   { value: "sales", label: "Sales" },
@@ -38,6 +40,12 @@ const Users = () => {
   // Position editing state
   const [editingPositionId, setEditingPositionId] = useState<string | null>(null);
   const [editPositionValue, setEditPositionValue] = useState("");
+
+  // Reset password state
+  const [resetTarget, setResetTarget] = useState<{ id: string; name: string } | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const getErrorMessage = (err: unknown) => {
     const message = err instanceof Error ? err.message : "Terjadi kesalahan.";
@@ -100,6 +108,28 @@ const Users = () => {
       toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetTarget || !resetPassword || resetPassword.length < 6) {
+      toast({ title: "Error", description: "Password minimal 6 karakter.", variant: "destructive" });
+      return;
+    }
+    setResetting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("reset-password", {
+        body: { user_id: resetTarget.id, new_password: resetPassword },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Berhasil", description: `Password ${resetTarget.name} berhasil direset.` });
+      setResetTarget(null);
+      setResetPassword("");
+    } catch (err) {
+      toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -244,6 +274,7 @@ const Users = () => {
                     <TableHead>Jabatan</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead className="w-48">Ubah Role</TableHead>
+                    <TableHead className="w-24">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -268,11 +299,21 @@ const Users = () => {
                           </SelectContent>
                         </Select>
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setResetTarget({ id: p.id, name: getDisplayName(p) })}
+                        >
+                          <KeyRound className="h-3.5 w-3.5 mr-1.5" />
+                          Reset
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {profiles.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground">Belum ada user.</TableCell>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">Belum ada user.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -310,6 +351,15 @@ const Users = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setResetTarget({ id: p.id, name: getDisplayName(p) })}
+                  >
+                    <KeyRound className="h-3.5 w-3.5 mr-1.5" />
+                    Reset Password
+                  </Button>
                 </Card>
               ))}
               {profiles.length === 0 && (
@@ -319,6 +369,43 @@ const Users = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Reset Password Dialog */}
+      <Dialog open={!!resetTarget} onOpenChange={(open) => { if (!open) { setResetTarget(null); setResetPassword(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Reset password untuk <strong>{resetTarget?.name}</strong>. User akan diminta setup ulang saat login berikutnya.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>Password Baru</Label>
+            <div className="relative">
+              <Input
+                type={showResetPassword ? "text" : "password"}
+                placeholder="Minimal 6 karakter"
+                value={resetPassword}
+                onChange={(e) => setResetPassword(e.target.value)}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowResetPassword(!showResetPassword)}
+                className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+              >
+                {showResetPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setResetTarget(null); setResetPassword(""); }}>Batal</Button>
+            <Button onClick={handleResetPassword} disabled={resetting}>
+              {resetting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Mereset...</> : "Reset Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
