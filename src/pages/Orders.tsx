@@ -88,7 +88,7 @@ const Orders = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
   const [editing, setEditing] = useState<Order | null>(null);
-  const [form, setForm] = useState({ customer_id: "", status: "pending", ppn_enabled: false, ppn_percentage: "11", ppn_custom: false, salesId: "", shipping_type: "cod", shipping_cost: "" });
+  const [form, setForm] = useState({ customer_id: "", status: "pending", ppn_enabled: false, ppn_percentage: "11", ppn_custom: false, salesId: "", shipping_type: "cod", shipping_cost: "", expedition_name: "", weight_kg: "", dp_amount: "" });
   const [items, setItems] = useState<ItemForm[]>([emptyItem()]);
   const [submitting, setSubmitting] = useState(false);
   const [submittingPayment, setSubmittingPayment] = useState(false);
@@ -218,7 +218,7 @@ const Orders = () => {
       return;
     }
     setEditing(null);
-    setForm({ customer_id: "", status: "pending", ppn_enabled: false, ppn_percentage: "11", ppn_custom: false, salesId: "", shipping_type: "cod", shipping_cost: "" });
+    setForm({ customer_id: "", status: "pending", ppn_enabled: false, ppn_percentage: "11", ppn_custom: false, salesId: "", shipping_type: "cod", shipping_cost: "", expedition_name: "", weight_kg: "", dp_amount: "" });
     setItems([emptyItem()]);
     setShowNewCustomer(false);
     setNewCustomerForm({ name: "", phone: "", address: "" });
@@ -239,6 +239,9 @@ const Orders = () => {
       salesId: o.sales_id ? String(o.sales_id) : "",
       shipping_type: (o as any).shipping_type || "cod",
       shipping_cost: String((o as any).shipping_cost || ""),
+      expedition_name: (o as any).expedition_name || "",
+      weight_kg: String((o as any).weight_kg || ""),
+      dp_amount: "",
     });
     const existingItems = allOrderItems
       .filter((i) => i.order_id === o.id)
@@ -346,6 +349,8 @@ const Orders = () => {
           ppnPercentage: ppnValue,
           shippingType: form.shipping_type,
           shippingCost: form.shipping_type === "non_cod" ? (parseInt(form.shipping_cost) || 0) : 0,
+          expeditionName: form.shipping_type === "non_cod" ? form.expedition_name : undefined,
+          weightKg: form.shipping_type === "non_cod" ? (parseFloat(form.weight_kg) || undefined) : undefined,
         });
 
         // ... logika delete & update items ...
@@ -360,6 +365,8 @@ const Orders = () => {
           poPeriodId: activePO?.id,
           shippingType: form.shipping_type,
           shippingCost: form.shipping_type === "non_cod" ? (parseInt(form.shipping_cost) || 0) : 0,
+          expeditionName: form.shipping_type === "non_cod" ? form.expedition_name : undefined,
+          weightKg: form.shipping_type === "non_cod" ? (parseFloat(form.weight_kg) || undefined) : undefined,
         });
 
         // Insert Items
@@ -370,6 +377,16 @@ const Orders = () => {
             quantity: parseInt(item.quantity),
             pricePerUnit: parseInt(item.price_per_unit),
             workType: item.work_type,
+          });
+        }
+
+        // Insert DP payment if provided
+        if (form.dp_amount && parseInt(form.dp_amount) > 0) {
+          await supabase.from("payments").insert({
+            order_id: newOrder.id,
+            amount: parseInt(form.dp_amount),
+            payment_method: "cash",
+            notes: "DP Awal",
           });
         }
       }
@@ -394,7 +411,8 @@ const Orders = () => {
   const subtotalAmount = items.reduce((sum, item) => sum + calcSubtotal(item), 0);
   const ppnPct = form.ppn_enabled ? (parseInt(form.ppn_percentage) || 0) : 0;
   const ppnAmount = ppnPct > 0 ? Math.round(subtotalAmount * ppnPct / 100) : 0;
-  const totalAmount = subtotalAmount + ppnAmount;
+  const shippingCostAmount = form.shipping_type === "non_cod" ? (parseInt(form.shipping_cost) || 0) : 0;
+  const totalAmount = subtotalAmount + ppnAmount + shippingCostAmount;
 
   const filteredOrders = orders.filter((o) => {
     // PO filter
@@ -634,19 +652,41 @@ const Orders = () => {
                     </Badge>
                   </div>
                   {form.shipping_type === "non_cod" && (
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Biaya Ongkir</Label>
-                      <div className="relative">
-                        <span className="absolute left-2.5 top-2 text-[10px] font-medium text-muted-foreground">Rp</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Biaya Ongkir</Label>
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-2 text-[10px] font-medium text-muted-foreground">Rp</span>
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            className="pl-7 h-9"
+                            value={formatRupiah(form.shipping_cost)}
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(/\D/g, "");
+                              setForm({ ...form, shipping_cost: raw });
+                            }}
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Ekspedisi</Label>
+                        <Input
+                          className="h-9"
+                          value={form.expedition_name}
+                          onChange={(e) => setForm({ ...form, expedition_name: e.target.value })}
+                          placeholder="JNE, J&T, dll"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Berat (kg)</Label>
                         <Input
                           type="text"
-                          inputMode="numeric"
-                          className="pl-7 h-9"
-                          value={formatRupiah(form.shipping_cost)}
-                          onChange={(e) => {
-                            const raw = e.target.value.replace(/\D/g, "");
-                            setForm({ ...form, shipping_cost: raw });
-                          }}
+                          inputMode="decimal"
+                          className="h-9"
+                          value={form.weight_kg}
+                          onChange={(e) => setForm({ ...form, weight_kg: e.target.value.replace(/[^0-9.]/g, "") })}
                           placeholder="0"
                         />
                       </div>
@@ -749,12 +789,15 @@ const Orders = () => {
                           </Button>
                         )}
 
-                        <CardContent className="pt-6 pb-3 px-4">
-                          <div className="grid grid-cols-12 gap-x-3 gap-y-4 items-start">
+                        <CardContent className="pt-4 pb-2 px-3 md:pt-3 md:pb-2 md:px-3">
+                          <div className="grid grid-cols-12 gap-x-2 gap-y-3 md:gap-y-1 items-start">
 
                             {/* 1. Nama Produk */}
-                            <div className="col-span-12 md:col-span-6 space-y-1">
-                              <Label className={cn("text-[10px] font-medium", itemError?.product_name ? "text-destructive" : "text-muted-foreground")}>
+                            <div className="col-span-12 md:col-span-4 space-y-0.5">
+                              <Label className={cn("text-[10px] font-medium hidden md:block", itemError?.product_name ? "text-destructive" : "text-muted-foreground")}>
+                                Produk
+                              </Label>
+                              <Label className={cn("text-[10px] font-medium md:hidden", itemError?.product_name ? "text-destructive" : "text-muted-foreground")}>
                                 Nama Produk
                               </Label>
                               <Input
@@ -767,29 +810,29 @@ const Orders = () => {
                                     setErrors({ ...errors, items: newItemsErr });
                                   }
                                 }}
-                                placeholder="Contoh: Kemeja, Celana, dll"
-                                className={cn("h-9", itemError?.product_name && "border-destructive focus-visible:ring-destructive")}
+                                placeholder="Kemeja, Celana, dll"
+                                className={cn("h-8 text-sm", itemError?.product_name && "border-destructive focus-visible:ring-destructive")}
                               />
                               {itemError?.product_name && (
                                 <p className="text-[9px] text-destructive font-bold uppercase tracking-tight">{itemError.product_name}</p>
                               )}
                             </div>
 
-                            {/* 2. Jenis Pengerjaan */}
-                            <div className="col-span-12 md:col-span-6 space-y-1">
+                            {/* 2. Pengerjaan */}
+                            <div className="col-span-6 md:col-span-2 space-y-0.5">
                               <Label className="text-[10px] font-medium text-muted-foreground">Pengerjaan</Label>
-                              <div className="flex items-center gap-2">
-                                <Badge variant={item.work_type === "wift" ? "default" : "outline"} className="cursor-pointer text-xs" onClick={() => updateItem(index, "work_type", "wift")}>
+                              <div className="flex items-center gap-1 pt-0.5">
+                                <Badge variant={item.work_type === "wift" ? "default" : "outline"} className="cursor-pointer text-[10px] px-2 py-0" onClick={() => updateItem(index, "work_type", "wift")}>
                                   WIFT
                                 </Badge>
-                                <Badge variant={item.work_type === "luar" ? "default" : "outline"} className="cursor-pointer text-xs" onClick={() => updateItem(index, "work_type", "luar")}>
+                                <Badge variant={item.work_type === "luar" ? "default" : "outline"} className="cursor-pointer text-[10px] px-2 py-0" onClick={() => updateItem(index, "work_type", "luar")}>
                                   Luar
                                 </Badge>
                               </div>
                             </div>
 
                             {/* 3. Qty */}
-                            <div className="col-span-4 md:col-span-2 space-y-1">
+                            <div className="col-span-3 md:col-span-1 space-y-0.5">
                               <Label className={cn("text-[10px] font-medium", itemError?.quantity ? "text-destructive" : "text-muted-foreground")}>
                                 Qty
                               </Label>
@@ -805,23 +848,23 @@ const Orders = () => {
                                     setErrors({ ...errors, items: newItemsErr });
                                   }
                                 }}
-                                className={cn("h-9", itemError?.quantity && "border-destructive focus-visible:ring-destructive")}
+                                className={cn("h-8 text-sm", itemError?.quantity && "border-destructive focus-visible:ring-destructive")}
                               />
                             </div>
 
-                            {/* 3. Harga/Unit */}
-                            <div className="col-span-8 md:col-span-4 space-y-1">
+                            {/* 4. Harga/Unit */}
+                            <div className="col-span-6 md:col-span-3 space-y-0.5">
                               <Label className={cn("text-[10px] font-medium", itemError?.price_per_unit ? "text-destructive" : "text-muted-foreground")}>
                                 Harga/Unit
                               </Label>
                               <div className="relative">
-                                <span className={cn("absolute left-2.5 top-2 text-[10px] font-medium", itemError?.price_per_unit ? "text-destructive" : "text-muted-foreground")}>
+                                <span className={cn("absolute left-2 top-1.5 text-[10px] font-medium", itemError?.price_per_unit ? "text-destructive" : "text-muted-foreground")}>
                                   Rp
                                 </span>
                                 <Input
                                   type="text"
                                   inputMode="numeric"
-                                  className={cn("pl-7 h-9", itemError?.price_per_unit && "border-destructive focus-visible:ring-destructive")}
+                                  className={cn("pl-6 h-8 text-sm", itemError?.price_per_unit && "border-destructive focus-visible:ring-destructive")}
                                   value={formatRupiah(String(item.price_per_unit))}
                                   onChange={(e) => {
                                     const rawValue = e.target.value.replace(/\D/g, "");
@@ -837,22 +880,14 @@ const Orders = () => {
                               </div>
                             </div>
 
-                            {/* 4. Subtotal & Error Messages Row */}
-                            <div className="col-span-12 -mt-1 md:mt-1 flex flex-row justify-between items-center">
-                              <div>
-                                {itemError?.price_per_unit && (
-                                  <p className="text-[9px] text-destructive font-bold uppercase tracking-tight">Harga Wajib Isi</p>
-                                )}
-                              </div>
-
-                              <div className="flex flex-row items-center gap-1.5">
-                                <span className="text-[9px] uppercase font-bold tracking-tight text-muted-foreground/70">Subtotal:</span>
-                                <div className="flex items-baseline font-bold text-sm text-foreground">
-                                  <span className="text-[10px] mr-0.5 font-medium">Rp</span>
-                                  <span className="whitespace-nowrap">
-                                    {calcSubtotal(item).toLocaleString("id-ID")}
-                                  </span>
-                                </div>
+                            {/* 5. Subtotal */}
+                            <div className="col-span-3 md:col-span-2 flex items-end justify-end md:pb-0.5">
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-[9px] text-muted-foreground/70 font-medium hidden md:inline">Sub:</span>
+                                <span className="text-[10px] mr-0.5 font-medium text-muted-foreground">Rp</span>
+                                <span className="text-sm font-bold whitespace-nowrap">
+                                  {calcSubtotal(item).toLocaleString("id-ID")}
+                                </span>
                               </div>
                             </div>
 
@@ -863,7 +898,7 @@ const Orders = () => {
                   })}
 
                   {/* Ringkasan Total */}
-                  <div className="mt-6 space-y-2 rounded-lg bg-muted/20 p-4 border border-dashed">
+                  <div className="mt-4 space-y-2 rounded-lg bg-muted/20 p-4 border border-dashed">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Subtotal Produk</span>
                       <span className="font-medium text-foreground">Rp {subtotalAmount.toLocaleString("id-ID")}</span>
@@ -872,7 +907,14 @@ const Orders = () => {
                     {ppnPct > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">PPN ({ppnPct}%)</span>
-                        <span className="font-medium text-foreground text-destructive">+ Rp {ppnAmount.toLocaleString("id-ID")}</span>
+                        <span className="font-medium text-destructive">+ Rp {ppnAmount.toLocaleString("id-ID")}</span>
+                      </div>
+                    )}
+
+                    {shippingCostAmount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Ongkir{form.expedition_name ? ` (${form.expedition_name})` : ""}</span>
+                        <span className="font-medium text-foreground">+ Rp {shippingCostAmount.toLocaleString("id-ID")}</span>
                       </div>
                     )}
 
@@ -883,6 +925,30 @@ const Orders = () => {
                       <span className="text-lg font-bold text-primary">Rp {totalAmount.toLocaleString("id-ID")}</span>
                     </div>
                   </div>
+
+                  {/* DP / Pembayaran Awal (hanya saat create) */}
+                  {!editing && (
+                    <div className="space-y-2 rounded-lg border border-border p-3">
+                      <Label className="text-sm font-medium">DP / Pembayaran Awal (Opsional)</Label>
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-2 text-[10px] font-medium text-muted-foreground">Rp</span>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          className="pl-7 h-9"
+                          value={formatRupiah(form.dp_amount)}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/\D/g, "");
+                            setForm({ ...form, dp_amount: raw });
+                          }}
+                          placeholder="0"
+                        />
+                      </div>
+                      {parseInt(form.dp_amount) > 0 && (
+                        <p className="text-xs text-muted-foreground">DP akan dicatat otomatis sebagai pembayaran awal.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <Button type="submit" className="w-full" disabled={submitting}>

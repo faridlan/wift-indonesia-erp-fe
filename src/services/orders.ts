@@ -12,6 +12,8 @@ export type OrderPayload = {
   poPeriodId?: string;
   shippingType?: string;
   shippingCost?: number;
+  expeditionName?: string;
+  weightKg?: number;
 };
 
 export type OrderUpdatePayload = {
@@ -21,6 +23,8 @@ export type OrderUpdatePayload = {
   ppnPercentage?: number;
   shippingType?: string;
   shippingCost?: number;
+  expeditionName?: string;
+  weightKg?: number;
 };
 
 export async function getOrders(): Promise<Order[]> {
@@ -53,6 +57,8 @@ export async function createOrder(payload: OrderPayload): Promise<Order> {
     po_period_id: payload.poPeriodId || null,
     shipping_type: payload.shippingType ?? 'cod',
     shipping_cost: payload.shippingCost ?? 0,
+    expedition_name: payload.expeditionName || null,
+    weight_kg: payload.weightKg || null,
   } as any).select().single();
 
   if (error) {
@@ -72,6 +78,8 @@ export async function updateOrder(payload: OrderUpdatePayload): Promise<void> {
       ppn_percentage: payload.ppnPercentage ?? 0,
       shipping_type: payload.shippingType ?? 'cod',
       shipping_cost: payload.shippingCost ?? 0,
+      expedition_name: payload.expeditionName || null,
+      weight_kg: payload.weightKg || null,
     })
     .eq("id", payload.id);
 
