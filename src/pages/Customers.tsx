@@ -135,7 +135,7 @@ const Customers = () => {
         await updateCustomerMutation.mutateAsync({
           id: editing.id,
           name: form.name,
-          phone: form.phone,
+          phone: normalizePhoneNumber(form.phone),
           address: form.address,
           // salesId biasanya tidak diupdate saat edit customer 
           // untuk menjaga integritas data histori
