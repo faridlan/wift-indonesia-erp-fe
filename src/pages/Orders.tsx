@@ -999,9 +999,21 @@ const Orders = () => {
                 <div><span className="text-muted-foreground">Customer:</span> {customerName(detailOrder.customer_id)}</div>
                 <div><span className="text-muted-foreground">Sales:</span> {salesName(detailOrder.sales_id)}</div>
                 <div><span className="text-muted-foreground">Status:</span> <Badge variant={statusColor(detailOrder.status)}>{detailOrder.status}</Badge></div>
-                <div><span className="text-muted-foreground">Total:</span> Rp {(detailOrder.total_price || 0).toLocaleString("id-ID")}</div>
-                <div><span className="text-muted-foreground">Bayar:</span> Rp {(detailOrder.amount_paid || 0).toLocaleString("id-ID")}</div>
                 <div><span className="text-muted-foreground">PPN:</span> {(detailOrder as any).ppn_percentage > 0 ? `Ya (${(detailOrder as any).ppn_percentage}%) — Rp ${((detailOrder as any).ppn_amount || 0).toLocaleString("id-ID")}` : "Tidak"}</div>
+                <div><span className="text-muted-foreground">Ongkir:</span> {detailOrder.shipping_type === "non_cod" ? `Rp ${(detailOrder.shipping_cost || 0).toLocaleString("id-ID")}` : "COD"}</div>
+                {detailOrder.shipping_type === "non_cod" && detailOrder.expedition_name && (
+                  <div><span className="text-muted-foreground">Ekspedisi:</span> {detailOrder.expedition_name}{detailOrder.weight_kg ? ` (${detailOrder.weight_kg} kg)` : ""}</div>
+                )}
+              </div>
+              <Separator />
+              <div className="rounded-lg bg-muted/50 p-3 space-y-1 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">Subtotal Item</span><span>Rp {((detailOrder.total_price || 0) - ((detailOrder as any).ppn_amount || 0) - (detailOrder.shipping_cost || 0)).toLocaleString("id-ID")}</span></div>
+                {detailOrder.shipping_cost > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Ongkir</span><span>Rp {detailOrder.shipping_cost.toLocaleString("id-ID")}</span></div>}
+                {(detailOrder as any).ppn_amount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">PPN ({(detailOrder as any).ppn_percentage}%)</span><span>Rp {((detailOrder as any).ppn_amount || 0).toLocaleString("id-ID")}</span></div>}
+                <Separator className="my-1" />
+                <div className="flex justify-between font-bold"><span>Total</span><span>Rp {(detailOrder.total_price || 0).toLocaleString("id-ID")}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Dibayar</span><span>Rp {(detailOrder.amount_paid || 0).toLocaleString("id-ID")}</span></div>
+                <div className="flex justify-between font-bold text-destructive"><span>Sisa</span><span>Rp {((detailOrder.total_price || 0) - (detailOrder.amount_paid || 0)).toLocaleString("id-ID")}</span></div>
               </div>
               <Separator />
               <div>
