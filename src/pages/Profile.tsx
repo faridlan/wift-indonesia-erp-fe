@@ -188,6 +188,17 @@ const Profile = () => {
                 <div className="space-y-2">
                   <Label>Slug (URL Landing Page)</Label>
                   <Input value={form.slug} onChange={(e) => setField("slug", e.target.value)} placeholder="nama-saya" />
+                  {form.slug && (
+                    <a
+                      href={`https://www.wijaya.faridlan.com/${form.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      https://www.wijaya.faridlan.com/{form.slug}
+                    </a>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Meta Pixel ID</Label>
@@ -206,7 +217,103 @@ const Profile = () => {
           </form>
         </CardContent>
       </Card>
+
+      {/* Bank Accounts Card - Sales Only */}
+      {isSales && <BankAccountsCard userId={user?.id} />}
     </div>
+  );
+};
+
+const BankAccountsCard = ({ userId }: { userId: string | undefined }) => {
+  const { toast } = useToast();
+  const { data: bankAccounts = [], isLoading } = useBankAccounts(userId);
+  const createMutation = useCreateBankAccount(userId);
+  const deleteMutation = useDeleteBankAccount(userId);
+
+  const [newBank, setNewBank] = useState({ bank_name: "", account_number: "", account_holder: "" });
+  const [showForm, setShowForm] = useState(false);
+
+  const handleAdd = async () => {
+    if (!newBank.bank_name || !newBank.account_number || !newBank.account_holder) {
+      toast({ title: "Error", description: "Semua field wajib diisi.", variant: "destructive" });
+      return;
+    }
+    try {
+      await createMutation.mutateAsync({
+        bankName: newBank.bank_name,
+        accountNumber: newBank.account_number,
+        accountHolder: newBank.account_holder,
+      });
+      setNewBank({ bank_name: "", account_number: "", account_holder: "" });
+      setShowForm(false);
+      toast({ title: "Berhasil", description: "Rekening ditambahkan." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteMutation.mutateAsync(id);
+      toast({ title: "Berhasil", description: "Rekening dihapus." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-lg">No. Rekening Pribadi</CardTitle>
+        <Button variant="outline" size="sm" onClick={() => setShowForm(!showForm)}>
+          <Plus className="h-4 w-4 mr-1" /> Tambah
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">Rekening ini digunakan pada invoice tanpa PPN.</p>
+
+        {isLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
+
+        {bankAccounts.map((acc) => (
+          <div key={acc.id} className="flex items-center justify-between rounded-md border p-3">
+            <div className="text-sm space-y-0.5">
+              <p className="font-medium">{acc.bank_name}</p>
+              <p className="text-muted-foreground">{acc.account_number} — {acc.account_holder}</p>
+            </div>
+            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(acc.id)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+
+        {bankAccounts.length === 0 && !isLoading && (
+          <p className="text-sm text-muted-foreground text-center py-2">Belum ada rekening.</p>
+        )}
+
+        {showForm && (
+          <div className="space-y-3 border rounded-md p-3">
+            <div className="space-y-2">
+              <Label>Nama Bank</Label>
+              <Input value={newBank.bank_name} onChange={(e) => setNewBank(p => ({ ...p, bank_name: e.target.value }))} placeholder="BCA" />
+            </div>
+            <div className="space-y-2">
+              <Label>No. Rekening</Label>
+              <Input value={newBank.account_number} onChange={(e) => setNewBank(p => ({ ...p, account_number: e.target.value }))} placeholder="1234567890" />
+            </div>
+            <div className="space-y-2">
+              <Label>Nama Pemilik</Label>
+              <Input value={newBank.account_holder} onChange={(e) => setNewBank(p => ({ ...p, account_holder: e.target.value }))} placeholder="Nama lengkap" />
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleAdd} disabled={createMutation.isPending}>
+                {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Simpan"}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
