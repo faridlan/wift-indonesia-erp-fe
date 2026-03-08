@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/pagination";
 import { ArrowLeft, Calendar, Eye, FileDown, Receipt } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { useOrders, useOrderCustomers } from "@/hooks/api/useOrders";
