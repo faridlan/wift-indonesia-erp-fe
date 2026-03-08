@@ -1179,7 +1179,7 @@ const Orders = () => {
                   </TableRow>
                 ))}
                 {filteredOrders.length === 0 && (
-                  <TableRow><TableCell colSpan={selectedPOTab === "all" ? 11 : 10} className="text-center text-muted-foreground">Belum ada order.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">Belum ada order.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
