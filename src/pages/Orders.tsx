@@ -1433,7 +1433,7 @@ const Orders = () => {
                   <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => openDetail(o)}>
                     <Eye className="h-3.5 w-3.5 mr-1" />Detail
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleDownloadInvoice(o)}>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => openInvoiceOptions(o)}>
                     <FileDown className="h-3.5 w-3.5 mr-1" />Invoice
                   </Button>
                   {o.payment_status === "paid" && (
