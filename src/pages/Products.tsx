@@ -31,10 +31,8 @@ const Products = () => {
 
   const [form, setForm] = useState({ name: "", slug: "", price: "", category_id: "", description: "", image_url: "" });
   const mainImageRef = useRef<HTMLInputElement>(null);
-  const sizeChartRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
   const [uploadingMain, setUploadingMain] = useState(false);
-  const [uploadingChart, setUploadingChart] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
 
   const { data: galleryImages = [] } = useProductImages(selectedProductId);
