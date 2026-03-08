@@ -22,6 +22,7 @@ import { useOrderItems } from "@/hooks/api/useOrderItems";
 import { usePOPeriods } from "@/hooks/api/usePOPeriods";
 import { useSalesProfiles } from "@/hooks/api/useProfile";
 import { generateInvoicePDF } from "@/lib/generate-invoice";
+import { getBankAccountsBySalesId } from "@/services/bank-accounts";
 import { generateNotaPDF } from "@/lib/generate-nota";
 import { useToast } from "@/hooks/use-toast";
 import type { Order } from "@/services/orders";
