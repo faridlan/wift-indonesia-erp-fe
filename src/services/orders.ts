@@ -10,6 +10,8 @@ export type OrderPayload = {
   salesId: string;
   ppnPercentage?: number;
   poPeriodId?: string;
+  shippingType?: string;
+  shippingCost?: number;
 };
 
 export type OrderUpdatePayload = {
@@ -17,6 +19,8 @@ export type OrderUpdatePayload = {
   customerId?: string;
   status: string;
   ppnPercentage?: number;
+  shippingType?: string;
+  shippingCost?: number;
 };
 
 export async function getOrders(): Promise<Order[]> {
@@ -47,6 +51,8 @@ export async function createOrder(payload: OrderPayload): Promise<Order> {
     include_ppn: (payload.ppnPercentage ?? 0) > 0,
     ppn_percentage: payload.ppnPercentage ?? 0,
     po_period_id: payload.poPeriodId || null,
+    shipping_type: payload.shippingType ?? 'cod',
+    shipping_cost: payload.shippingCost ?? 0,
   } as any).select().single();
 
   if (error) {
@@ -64,6 +70,8 @@ export async function updateOrder(payload: OrderUpdatePayload): Promise<void> {
       status: payload.status,
       include_ppn: (payload.ppnPercentage ?? 0) > 0,
       ppn_percentage: payload.ppnPercentage ?? 0,
+      shipping_type: payload.shippingType ?? 'cod',
+      shipping_cost: payload.shippingCost ?? 0,
     })
     .eq("id", payload.id);
 
@@ -79,4 +87,3 @@ export async function deleteOrder(id: string): Promise<void> {
     throw error;
   }
 }
-
