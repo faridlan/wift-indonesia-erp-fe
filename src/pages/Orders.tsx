@@ -266,11 +266,20 @@ const Orders = () => {
     setDetailDialogOpen(true);
   };
 
-  const handleDownloadInvoice = (o: Order) => {
+  const openInvoiceOptions = (o: Order) => {
+    setInvoiceTargetOrder(o);
+    setInvoiceOpts({ withStamp: true, withSignature: true });
+    setInvoiceOptionsOpen(true);
+  };
+
+  const handleDownloadInvoice = () => {
+    if (!invoiceTargetOrder) return;
+    const o = invoiceTargetOrder;
     const orderItems = allOrderItems.filter((i) => i.order_id === o.id);
     const customer = customers.find((c) => c.id === o.customer_id) || null;
-    generateInvoicePDF({ order: o, items: orderItems, customer });
+    generateInvoicePDF({ order: o, items: orderItems, customer, options: invoiceOpts });
     toast({ title: "Berhasil", description: `Invoice #${o.order_number} berhasil diunduh.` });
+    setInvoiceOptionsOpen(false);
   };
 
   const handleDownloadNota = (o: Order) => {
