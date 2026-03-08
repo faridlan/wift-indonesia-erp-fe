@@ -122,7 +122,7 @@ const Users = () => {
             }}
           />
           <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => savePosition(p.id)} disabled={updatePositionMutation.isPending}>
-            <Check className="h-3.5 w-3.5 text-green-600" />
+            <Check className="h-3.5 w-3.5 text-primary" />
           </Button>
           <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={cancelEditPosition}>
             <X className="h-3.5 w-3.5 text-destructive" />
