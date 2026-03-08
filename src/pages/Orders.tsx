@@ -306,7 +306,7 @@ const Orders = () => {
     try {
       const newCust = await createCustomerMutation.mutateAsync({
         name: newCustomerForm.name,
-        phone: newCustomerForm.phone,
+        phone: normalizePhoneNumber(newCustomerForm.phone),
         address: newCustomerForm.address,
         salesId: isAdminOrSuperadmin ? form.salesId : user!.id,
       });
