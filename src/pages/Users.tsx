@@ -111,6 +111,28 @@ const Users = () => {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!resetTarget || !resetPassword || resetPassword.length < 6) {
+      toast({ title: "Error", description: "Password minimal 6 karakter.", variant: "destructive" });
+      return;
+    }
+    setResetting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("reset-password", {
+        body: { user_id: resetTarget.id, new_password: resetPassword },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Berhasil", description: `Password ${resetTarget.name} berhasil direset.` });
+      setResetTarget(null);
+      setResetPassword("");
+    } catch (err) {
+      toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const getDisplayName = (p: any) => p.full_name || p.id.slice(0, 8);
 
   const PositionCell = ({ profile: p }: { profile: any }) => {
