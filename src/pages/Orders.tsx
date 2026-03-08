@@ -830,7 +830,6 @@ const Orders = () => {
               </form>
             </DialogContent>
           </Dialog>
-        </div>
       </div>
 
       {/* Detail Dialog */}
