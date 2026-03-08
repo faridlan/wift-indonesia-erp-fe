@@ -81,8 +81,8 @@ function AppSidebar() {
                     isActive={location.pathname === item.to}
                     tooltip={item.label}
                   >
-                    <Link to={item.to} onClick={handleNavClick} className="text-lg md:text-sm py-3 md:py-0">
-                      <item.icon className="h-6 w-6 md:h-4 md:w-4" />
+                    <Link to={item.to} onClick={handleNavClick} className="text-xl md:text-sm py-4 md:py-0">
+                      <item.icon className="h-7 w-7 md:h-4 md:w-4" />
                       <span>{item.label}</span>
                     </Link>
                   </SidebarMenuButton>
