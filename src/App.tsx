@@ -18,6 +18,9 @@ import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 import POPeriods from "./pages/POPeriods";
 import Reports from "./pages/Reports";
+import Products from "./pages/Products";
+import Categories from "./pages/Categories";
+import Leads from "./pages/Leads";
 import AdminRoute from "@/components/AdminRoute";
 
 const queryClient = new QueryClient();
