@@ -358,6 +358,8 @@ const Orders = () => {
           salesId,
           ppnPercentage: ppnValue,
           poPeriodId: activePO?.id,
+          shippingType: form.shipping_type,
+          shippingCost: form.shipping_type === "non_cod" ? (parseInt(form.shipping_cost) || 0) : 0,
         });
 
         // Insert Items
@@ -367,6 +369,7 @@ const Orders = () => {
             productName: item.product_name,
             quantity: parseInt(item.quantity),
             pricePerUnit: parseInt(item.price_per_unit),
+            workType: item.work_type,
           });
         }
       }
