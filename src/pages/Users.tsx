@@ -33,7 +33,7 @@ const Users = () => {
   const updateRoleMutation = useUpdateProfileRole();
   const updatePositionMutation = useUpdateProfilePosition();
 
-  const [form, setForm] = useState({ username: "", password: "", full_name: "", role: "sales" as "sales" | "admin" });
+  const [form, setForm] = useState({ username: "", password: "", full_name: "", position: "", role: "sales" as "sales" | "admin" });
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -101,8 +101,17 @@ const Users = () => {
         full_name: form.full_name.trim() || undefined,
         role: form.role,
       });
+      // Update position if provided
+      if (form.position.trim()) {
+        // Find the newly created profile and update position
+        await queryClient.invalidateQueries({ queryKey: ["profiles", "all"] });
+        const { data: newProfiles } = await supabase.from("profiles").select("id, full_name").order("created_at", { ascending: false }).limit(1);
+        if (newProfiles?.[0]) {
+          await supabase.from("profiles").update({ position: form.position.trim() }).eq("id", newProfiles[0].id);
+        }
+      }
       toast({ title: "Berhasil", description: result.message });
-      setForm({ username: "", password: "", full_name: "", role: "sales" });
+      setForm({ username: "", password: "", full_name: "", position: "", role: "sales" });
       queryClient.invalidateQueries({ queryKey: ["profiles", "all"] });
     } catch (err) {
       toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
@@ -179,75 +188,89 @@ const Users = () => {
 
       {/* Create User Form */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <UserPlus className="h-5 w-5" />
             Tambah User Baru
           </CardTitle>
-          <p className="text-sm text-muted-foreground">Buat akun baru dengan username dan password.</p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleCreateUser} className="space-y-4 max-w-md">
-            <div className="space-y-2">
-              <Label htmlFor="create-username">Username *</Label>
-              <Input
-                id="create-username"
-                placeholder="contoh: budi.sales"
-                value={form.username}
-                onChange={(e) => setForm((prev) => ({ ...prev, username: e.target.value.toLowerCase().replace(/\s/g, "") }))}
-                required
-              />
-              <p className="text-xs text-muted-foreground">Huruf kecil, angka, titik, underscore, strip</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="create-password">Password *</Label>
-              <div className="relative">
+          <form onSubmit={handleCreateUser} className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="create-username" className="text-xs">Username *</Label>
                 <Input
-                  id="create-password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Minimal 6 karakter"
-                  value={form.password}
-                  onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
-                  className="pr-10"
+                  id="create-username"
+                  placeholder="contoh: budi.sales"
+                  value={form.username}
+                  onChange={(e) => setForm((prev) => ({ ...prev, username: e.target.value.toLowerCase().replace(/\s/g, "") }))}
                   required
+                  className="h-9"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="create-password" className="text-xs">Password *</Label>
+                <div className="relative">
+                  <Input
+                    id="create-password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Minimal 6 karakter"
+                    value={form.password}
+                    onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+                    className="pr-10 h-9"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="create-name" className="text-xs">Nama Lengkap</Label>
+                <Input
+                  id="create-name"
+                  placeholder="Nama lengkap"
+                  value={form.full_name}
+                  onChange={(e) => setForm((prev) => ({ ...prev, full_name: e.target.value }))}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="create-position" className="text-xs">Jabatan</Label>
+                <Input
+                  id="create-position"
+                  placeholder="Contoh: Sales Executive"
+                  value={form.position}
+                  onChange={(e) => setForm((prev) => ({ ...prev, position: e.target.value }))}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Role</Label>
+                <Select
+                  value={form.role}
+                  onValueChange={(v: "sales" | "admin") => setForm((prev) => ({ ...prev, role: v }))}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CREATE_ROLES.map((r) => (
+                      <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end">
+                <Button type="submit" disabled={submitting} className="h-9 w-full sm:w-auto">
+                  {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Membuat...</> : <><UserPlus className="h-4 w-4 mr-2" /> Buat User</>}
+                </Button>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="create-name">Nama Lengkap (opsional)</Label>
-              <Input
-                id="create-name"
-                placeholder="Nama lengkap"
-                value={form.full_name}
-                onChange={(e) => setForm((prev) => ({ ...prev, full_name: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Role</Label>
-              <Select
-                value={form.role}
-                onValueChange={(v: "sales" | "admin") => setForm((prev) => ({ ...prev, role: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CREATE_ROLES.map((r) => (
-                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Membuat...</> : "Buat User"}
-            </Button>
           </form>
         </CardContent>
       </Card>
