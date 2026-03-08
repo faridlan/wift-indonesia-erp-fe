@@ -41,7 +41,8 @@ const formatDate = (dateStr: string | null) => {
   });
 };
 
-export function generateInvoicePDF({ order, items, customer }: InvoiceData) {
+export function generateInvoicePDF({ order, items, customer, options }: InvoiceData) {
+  const { withStamp = true, withSignature = true } = options || {};
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();

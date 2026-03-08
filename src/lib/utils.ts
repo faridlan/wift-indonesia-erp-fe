@@ -36,3 +36,12 @@ export function formatShortDate(dateStr: string | null): string {
   const d = new Date(dateStr);
   return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}`;
 }
+
+/** Convert phone number prefix "0" to "62" */
+export function normalizePhoneNumber(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("0")) {
+    return "62" + digits.slice(1);
+  }
+  return digits;
+}
