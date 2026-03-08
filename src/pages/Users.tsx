@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAllProfiles, useUpdateProfileRole } from "@/hooks/api/useProfile";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, UserPlus } from "lucide-react";
-import { inviteUser } from "@/services/invite-user";
+import { Loader2, UserPlus, Eye, EyeOff } from "lucide-react";
+import { createUser } from "@/services/invite-user";
 import { useQueryClient } from "@tanstack/react-query";
 
 const ROLES = [
@@ -18,27 +18,26 @@ const ROLES = [
   { value: "superadmin", label: "Super Admin" },
 ];
 
-const INVITE_ROLES = [
+const CREATE_ROLES = [
   { value: "sales", label: "Sales" },
   { value: "admin", label: "Admin" },
 ];
 
 const Users = () => {
-  const { role, session } = useAuth();
+  const { role } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: profiles = [], isLoading, isError, error } = useAllProfiles(role === "superadmin");
   const updateRoleMutation = useUpdateProfileRole();
 
-  const [inviteForm, setInviteForm] = useState({ email: "", full_name: "", role: "sales" as "sales" | "admin" });
-  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [form, setForm] = useState({ username: "", password: "", full_name: "", role: "sales" as "sales" | "admin" });
+  const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const getErrorMessage = (err: unknown) => {
     const message = err instanceof Error ? err.message : "Terjadi kesalahan.";
     const lower = message.toLowerCase();
-    if (lower.includes("permission") || lower.includes("rls")) {
-      return "Anda tidak memiliki akses untuk mengubah role.";
-    }
+    if (lower.includes("permission") || lower.includes("rls")) return "Anda tidak memiliki akses.";
     return message;
   };
 
@@ -51,162 +50,206 @@ const Users = () => {
     }
   };
 
-  const handleInviteSubmit = async (e: React.FormEvent) => {
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!session?.access_token) {
-      toast({ title: "Error", description: "Sesi tidak valid.", variant: "destructive" });
+    if (!form.username.trim()) {
+      toast({ title: "Error", description: "Username wajib diisi.", variant: "destructive" });
       return;
     }
-    if (!inviteForm.email.trim()) {
-      toast({ title: "Error", description: "Email wajib diisi.", variant: "destructive" });
+    if (!form.password || form.password.length < 6) {
+      toast({ title: "Error", description: "Password minimal 6 karakter.", variant: "destructive" });
       return;
     }
-    setInviteSubmitting(true);
+    setSubmitting(true);
     try {
-      await inviteUser({
-        email: inviteForm.email.trim(),
-        full_name: inviteForm.full_name.trim() || undefined,
-        role: inviteForm.role,
+      const result = await createUser({
+        username: form.username,
+        password: form.password,
+        full_name: form.full_name.trim() || undefined,
+        role: form.role,
       });
-      toast({ title: "Berhasil", description: "Undangan terkirim ke email." });
-      setInviteForm({ email: "", full_name: "", role: "sales" });
+      toast({ title: "Berhasil", description: result.message });
+      setForm({ username: "", password: "", full_name: "", role: "sales" });
       queryClient.invalidateQueries({ queryKey: ["profiles", "all"] });
     } catch (err) {
       toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
     } finally {
-      setInviteSubmitting(false);
+      setSubmitting(false);
     }
+  };
+
+  // Extract username from profile (strip @app.local from metadata or show full_name)
+  const getDisplayName = (p: any) => {
+    return p.full_name || p.id.slice(0, 8);
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground mb-1">Manajemen User</h1>
-        <p className="text-muted-foreground">Kelola role user (hanya Super Admin).</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1">Manajemen User</h1>
+        <p className="text-muted-foreground text-sm">Kelola user dan role (hanya Super Admin).</p>
       </div>
 
-      {/* Form Tambah User Baru */}
+      {/* Create User Form */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <UserPlus className="h-5 w-5" />
             Tambah User Baru
           </CardTitle>
-          <p className="text-sm text-muted-foreground">Kirim undangan ke email. User akan menerima link untuk mengatur password.</p>
+          <p className="text-sm text-muted-foreground">Buat akun baru dengan username dan password.</p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleInviteSubmit} className="space-y-4 max-w-md">
+          <form onSubmit={handleCreateUser} className="space-y-4 max-w-md">
             <div className="space-y-2">
-              <Label htmlFor="invite-email">Email</Label>
+              <Label htmlFor="create-username">Username *</Label>
               <Input
-                id="invite-email"
-                type="email"
-                placeholder="email@contoh.com"
-                value={inviteForm.email}
-                onChange={(e) => setInviteForm((prev) => ({ ...prev, email: e.target.value }))}
+                id="create-username"
+                placeholder="contoh: budi.sales"
+                value={form.username}
+                onChange={(e) => setForm((prev) => ({ ...prev, username: e.target.value.toLowerCase().replace(/\s/g, "") }))}
                 required
               />
+              <p className="text-xs text-muted-foreground">Huruf kecil, angka, titik, underscore, strip</p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="invite-name">Nama lengkap (opsional)</Label>
+              <Label htmlFor="create-password">Password *</Label>
+              <div className="relative">
+                <Input
+                  id="create-password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Minimal 6 karakter"
+                  value={form.password}
+                  onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+                  className="pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-name">Nama Lengkap (opsional)</Label>
               <Input
-                id="invite-name"
+                id="create-name"
                 placeholder="Nama lengkap"
-                value={inviteForm.full_name}
-                onChange={(e) => setInviteForm((prev) => ({ ...prev, full_name: e.target.value }))}
+                value={form.full_name}
+                onChange={(e) => setForm((prev) => ({ ...prev, full_name: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
               <Label>Role</Label>
               <Select
-                value={inviteForm.role}
-                onValueChange={(v: "sales" | "admin") => setInviteForm((prev) => ({ ...prev, role: v }))}
+                value={form.role}
+                onValueChange={(v: "sales" | "admin") => setForm((prev) => ({ ...prev, role: v }))}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {INVITE_ROLES.map((r) => (
-                    <SelectItem key={r.value} value={r.value}>
-                      {r.label}
-                    </SelectItem>
+                  {CREATE_ROLES.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <Button type="submit" disabled={inviteSubmitting}>
-              {inviteSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Mengirim...
-                </>
-              ) : (
-                "Kirim undangan"
-              )}
+            <Button type="submit" disabled={submitting}>
+              {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Membuat...</> : "Buat User"}
             </Button>
           </form>
         </CardContent>
       </Card>
 
+      {/* User List */}
       {isLoading && (
         <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading...
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading...
         </div>
       )}
-      {isError && (
-        <p className="text-sm text-destructive">{getErrorMessage(error)}</p>
-      )}
+      {isError && <p className="text-sm text-destructive">{getErrorMessage(error)}</p>}
       {!isLoading && !isError && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Daftar User</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead className="w-48">Ubah Role</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {profiles.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.full_name || p.id}</TableCell>
-                    <TableCell>
-                      <span className="capitalize">{p.role || "—"}</span>
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={p.role || ""}
-                        onValueChange={(v) => handleRoleChange(p.id, v)}
-                        disabled={updateRoleMutation.isPending}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Pilih role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ROLES.map((r) => (
-                            <SelectItem key={r.value} value={r.value}>
-                              {r.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {profiles.length === 0 && (
+            {/* Desktop Table */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground">
-                      Belum ada user.
-                    </TableCell>
+                    <TableHead>Nama</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead className="w-48">Ubah Role</TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {profiles.map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell className="font-medium">{getDisplayName(p)}</TableCell>
+                      <TableCell><span className="capitalize">{p.role || "—"}</span></TableCell>
+                      <TableCell>
+                        <Select
+                          value={p.role || ""}
+                          onValueChange={(v) => handleRoleChange(p.id, v)}
+                          disabled={updateRoleMutation.isPending}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Pilih role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ROLES.map((r) => (
+                              <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {profiles.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center text-muted-foreground">Belum ada user.</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-3">
+              {profiles.map((p) => (
+                <Card key={p.id} className="p-3 space-y-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-semibold">{getDisplayName(p)}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{p.role || "—"}</p>
+                    </div>
+                  </div>
+                  <Select
+                    value={p.role || ""}
+                    onValueChange={(v) => handleRoleChange(p.id, v)}
+                    disabled={updateRoleMutation.isPending}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Ubah role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLES.map((r) => (
+                        <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Card>
+              ))}
+              {profiles.length === 0 && (
+                <p className="text-center text-muted-foreground py-4">Belum ada user.</p>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}

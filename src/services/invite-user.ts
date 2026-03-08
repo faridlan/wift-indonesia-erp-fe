@@ -1,28 +1,34 @@
-// const getFunctionsUrl = () => {
-//   const env = typeof import.meta !== "undefined" && (import.meta as { env?: Record<string, string> }).env;
-//   const url = env?.VITE_SUPABASE_URL || "";
-//   if (!url) throw new Error("VITE_SUPABASE_URL is not set");
-//   return `${url.replace(/\/$/, "")}/functions/v1/invite-user`;
-// };
+import { supabase } from "@/integrations/supabase/client";
 
-export type InviteUserPayload = {
-  email: string;
+const EMAIL_DOMAIN = "app.local";
+
+export type CreateUserPayload = {
+  username: string;
+  password: string;
   full_name?: string;
   role?: "sales" | "admin";
 };
 
-export async function inviteUser(
-  payload: InviteUserPayload,
-): Promise<{ message: string }> {
-  const url = "http://127.0.0.1:54321/functions/v1/invite-user";
+export async function createUser(payload: CreateUserPayload): Promise<{ message: string }> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new Error("Sesi tidak valid. Silakan login ulang.");
+  }
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  if (!supabaseUrl) throw new Error("SUPABASE_URL tidak dikonfigurasi");
+
+  const url = `${supabaseUrl.replace(/\/$/, "")}/functions/v1/invite-user`;
+
   const res = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: "Bearer sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz",
+      Authorization: `Bearer ${session.access_token}`,
     },
     body: JSON.stringify({
-      email: payload.email.trim(),
+      username: payload.username.trim().toLowerCase(),
+      password: payload.password,
       full_name: payload.full_name?.trim() ?? "",
       role: payload.role === "admin" ? "admin" : "sales",
     }),
@@ -32,9 +38,9 @@ export async function inviteUser(
 
   if (!res.ok) {
     throw new Error(
-      typeof data?.error === "string" ? data.error : "Gagal mengirim undangan",
+      typeof data?.error === "string" ? data.error : "Gagal membuat user"
     );
   }
 
-  return { message: data?.message ?? "Undangan terkirim ke email." };
+  return { message: data?.message ?? "User berhasil dibuat." };
 }
