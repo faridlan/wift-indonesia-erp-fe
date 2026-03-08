@@ -101,8 +101,17 @@ const Users = () => {
         full_name: form.full_name.trim() || undefined,
         role: form.role,
       });
+      // Update position if provided
+      if (form.position.trim()) {
+        // Find the newly created profile and update position
+        await queryClient.invalidateQueries({ queryKey: ["profiles", "all"] });
+        const { data: newProfiles } = await supabase.from("profiles").select("id, full_name").order("created_at", { ascending: false }).limit(1);
+        if (newProfiles?.[0]) {
+          await supabase.from("profiles").update({ position: form.position.trim() }).eq("id", newProfiles[0].id);
+        }
+      }
       toast({ title: "Berhasil", description: result.message });
-      setForm({ username: "", password: "", full_name: "", role: "sales" });
+      setForm({ username: "", password: "", full_name: "", position: "", role: "sales" });
       queryClient.invalidateQueries({ queryKey: ["profiles", "all"] });
     } catch (err) {
       toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
