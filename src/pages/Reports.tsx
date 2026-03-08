@@ -14,8 +14,12 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { id as localeID } from "date-fns/locale";
 import { generateReportPDF } from "@/lib/generate-report";
+import { compactRupiah } from "@/lib/utils";
 
 const formatRp = (v: number) => `Rp ${v.toLocaleString("id-ID")}`;
+
+/** Take first 2 words of a name */
+const shortName = (name: string) => name.split(/\s+/).slice(0, 2).join(" ");
 
 interface SalesRow {
   salesId: string;
@@ -24,6 +28,8 @@ interface SalesRow {
   totalPcs: number;
   totalRevenue: number;
   sisaTagihan: number;
+  pcsWift: number;
+  pcsLuar: number;
 }
 
 const Reports = () => {
@@ -72,7 +78,6 @@ const Reports = () => {
         });
       }
     }
-    // tab === "all" => no filter
 
     if (!isAdminOrSuperadmin) {
       filtered = filtered.filter((o) => o.sales_id === user?.id);
@@ -94,12 +99,21 @@ const Reports = () => {
           totalPcs: 0,
           totalRevenue: 0,
           sisaTagihan: 0,
+          pcsWift: 0,
+          pcsLuar: 0,
         };
       }
       const row = map[o.sales_id];
       row.totalOrders += 1;
       const items = itemsByOrder[o.id] || [];
-      row.totalPcs += items.reduce((s, i) => s + i.quantity, 0);
+      for (const it of items) {
+        row.totalPcs += it.quantity;
+        if (it.work_type === "luar") {
+          row.pcsLuar += it.quantity;
+        } else {
+          row.pcsWift += it.quantity;
+        }
+      }
       row.totalRevenue += o.total_price || 0;
       row.sisaTagihan += (o.total_price || 0) - (o.amount_paid || 0);
     }
@@ -112,6 +126,8 @@ const Reports = () => {
         totalPcs: 0,
         totalRevenue: 0,
         sisaTagihan: 0,
+        pcsWift: 0,
+        pcsLuar: 0,
       };
     }
 
@@ -122,6 +138,8 @@ const Reports = () => {
   const totalPcs = salesRows.reduce((s, r) => s + r.totalPcs, 0);
   const totalRevenue = salesRows.reduce((s, r) => s + r.totalRevenue, 0);
   const totalSisaTagihan = salesRows.reduce((s, r) => s + r.sisaTagihan, 0);
+  const totalPcsWift = salesRows.reduce((s, r) => s + r.pcsWift, 0);
+  const totalPcsLuar = salesRows.reduce((s, r) => s + r.pcsLuar, 0);
 
   const availableYears = useMemo(() => {
     const yrs = new Set<string>();
@@ -139,7 +157,6 @@ const Reports = () => {
     return Array.from(mos).sort().reverse();
   }, [orders]);
 
-  // Monthly trend chart data (last 12 months for the filtered set)
   const trendData = useMemo(() => {
     const months = [];
     const relevantOrders = isAdminOrSuperadmin ? orders : orders.filter((o) => o.sales_id === user?.id);
@@ -182,16 +199,44 @@ const Reports = () => {
     return "Semua Waktu";
   };
 
+  /** Build a descriptive PDF title */
+  const getPDFTitle = () => {
+    if (tab === "po") {
+      if (poFilter !== "all") {
+        const po = poPeriods.find((p) => p.id === poFilter);
+        if (po) {
+          const startFmt = format(new Date(po.start_date), "d MMM yyyy", { locale: localeID });
+          const endFmt = format(new Date(po.end_date), "d MMM yyyy", { locale: localeID });
+          return `Laporan ${po.name} ${startFmt} - ${endFmt}`;
+        }
+      }
+      return "Laporan Per PO Period";
+    }
+    if (tab === "month") {
+      if (monthFilter) {
+        const d = new Date(monthFilter + "-01");
+        return `Laporan ${format(d, "MMMM yyyy", { locale: localeID })}`;
+      }
+      return "Laporan Per Bulan";
+    }
+    if (tab === "year") {
+      return yearFilter ? `Laporan Tahun ${yearFilter}` : "Laporan Per Tahun";
+    }
+    return "Laporan All Time";
+  };
+
   const handleExportPDF = () => {
-    const tabTitle = tab === "po" ? "Per PO Period" : tab === "month" ? "Per Bulan" : tab === "year" ? "Per Tahun" : "All Time";
     generateReportPDF({
-      title: `Laporan ${tabTitle}`,
+      title: getPDFTitle(),
       subtitle: `Filter: ${getFilterLabel()}`,
       rows: salesRows.map((r) => ({
-        label: r.salesName,
+        label: shortName(r.salesName),
         totalOrders: r.totalOrders,
         totalPcs: r.totalPcs,
         totalRevenue: r.totalRevenue,
+        sisaTagihan: r.sisaTagihan,
+        pcsWift: r.pcsWift,
+        pcsLuar: r.pcsLuar,
       })),
       salesName: undefined,
     });
@@ -239,10 +284,11 @@ const Reports = () => {
           <CardContent className="p-3 md:pt-6 md:p-6">
             <div className="flex flex-col items-center gap-1 md:flex-row md:gap-3">
               <div className="rounded-lg bg-primary/10 p-2"><Banknote className="h-4 w-4 text-primary" /></div>
-              <div className="text-center md:text-left">
+              <div className="text-center md:text-left min-w-0">
                 <p className="text-[10px] md:text-sm text-muted-foreground">Omzet</p>
-                <p className="text-base md:text-2xl font-bold text-foreground leading-tight truncate">
-                  {formatRp(totalRevenue)}
+                <p className="text-sm md:text-2xl font-bold text-foreground leading-tight">
+                  <span className="md:hidden">{compactRupiah(totalRevenue)}</span>
+                  <span className="hidden md:inline">{formatRp(totalRevenue)}</span>
                 </p>
               </div>
             </div>
@@ -252,10 +298,11 @@ const Reports = () => {
           <CardContent className="p-3 md:pt-6 md:p-6">
             <div className="flex flex-col items-center gap-1 md:flex-row md:gap-3">
               <div className="rounded-lg bg-destructive/10 p-2"><AlertCircle className="h-4 w-4 text-destructive" /></div>
-              <div className="text-center md:text-left">
+              <div className="text-center md:text-left min-w-0">
                 <p className="text-[10px] md:text-sm text-muted-foreground">Sisa Tagihan</p>
-                <p className={`text-base md:text-2xl font-bold leading-tight truncate ${totalSisaTagihan > 0 ? "text-destructive" : "text-foreground"}`}>
-                  {formatRp(totalSisaTagihan)}
+                <p className={`text-sm md:text-2xl font-bold leading-tight ${totalSisaTagihan > 0 ? "text-destructive" : "text-foreground"}`}>
+                  <span className="md:hidden">{compactRupiah(totalSisaTagihan)}</span>
+                  <span className="hidden md:inline">{formatRp(totalSisaTagihan)}</span>
                 </p>
               </div>
             </div>
@@ -273,7 +320,6 @@ const Reports = () => {
             <TabsTrigger value="all" className="flex-1 sm:flex-none text-xs sm:text-sm">All Time</TabsTrigger>
           </TabsList>
 
-          {/* Filter inline */}
           <div className="w-full sm:w-auto">
             {tab === "po" && (
               <Select value={poFilter} onValueChange={setPOFilter}>
@@ -321,7 +367,7 @@ const Reports = () => {
               <CardContent>
                 <div className="h-[260px] md:h-[320px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={salesRows}>
+                    <BarChart data={salesRows.map(r => ({ ...r, salesName: shortName(r.salesName) }))}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                       <XAxis dataKey="salesName" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={60} />
                       <YAxis yAxisId="left" tickFormatter={(v) => v.toLocaleString("id-ID")} tick={{ fontSize: 10 }} width={40} />
@@ -355,18 +401,32 @@ const Reports = () => {
                 <Table>
                   <TableHeader className="bg-muted/30">
                     <TableRow>
-                      <TableHead className="w-[50px] text-xs uppercase font-bold text-center">No</TableHead>
-                      {role !== "sales" && <TableHead className="text-xs uppercase font-bold min-w-[120px]">Sales</TableHead>}
+                      <TableHead className="w-[40px] text-xs uppercase font-bold text-center">No</TableHead>
+                      {role !== "sales" && <TableHead className="text-xs uppercase font-bold min-w-[90px]">Sales</TableHead>}
                       <TableHead className="text-right text-xs uppercase font-bold">Order</TableHead>
                       <TableHead className="text-right text-xs uppercase font-bold">PCS</TableHead>
-                      <TableHead className="text-right text-xs uppercase font-bold min-w-[120px]">Omzet</TableHead>
-                      <TableHead className="text-right text-xs uppercase font-bold min-w-[110px]">Sisa Tagihan</TableHead>
+                      <TableHead className="text-center text-xs uppercase font-bold" colSpan={2}>
+                        <span className="hidden md:inline">Tipe Pengerjaan</span>
+                        <span className="md:hidden">Tipe</span>
+                      </TableHead>
+                      <TableHead className="text-right text-xs uppercase font-bold min-w-[80px]">Omzet</TableHead>
+                      <TableHead className="text-right text-xs uppercase font-bold min-w-[80px]">Tagihan</TableHead>
+                    </TableRow>
+                    <TableRow className="border-b">
+                      <TableHead />
+                      {role !== "sales" && <TableHead />}
+                      <TableHead />
+                      <TableHead />
+                      <TableHead className="text-center text-[10px] uppercase text-muted-foreground font-semibold">Wift</TableHead>
+                      <TableHead className="text-center text-[10px] uppercase text-muted-foreground font-semibold">Luar</TableHead>
+                      <TableHead />
+                      <TableHead />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {salesRows.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={role !== "sales" ? 6 : 5} className="text-center text-muted-foreground py-10 text-sm">
+                        <TableCell colSpan={role !== "sales" ? 8 : 7} className="text-center text-muted-foreground py-10 text-sm">
                           Belum ada data transaksi.
                         </TableCell>
                       </TableRow>
@@ -375,12 +435,18 @@ const Reports = () => {
                         {salesRows.map((r, i) => (
                           <TableRow key={r.salesId} className="hover:bg-muted/50 transition-colors">
                             <TableCell className="text-center text-xs text-muted-foreground">{i + 1}</TableCell>
-                            {role !== "sales" && <TableCell className="font-semibold text-xs">{r.salesName}</TableCell>}
+                            {role !== "sales" && <TableCell className="font-semibold text-xs">{shortName(r.salesName)}</TableCell>}
                             <TableCell className="text-right text-xs font-mono">{r.totalOrders}</TableCell>
                             <TableCell className="text-right text-xs font-mono">{r.totalPcs.toLocaleString("id-ID")}</TableCell>
-                            <TableCell className="text-right text-xs font-mono font-medium whitespace-nowrap">{formatRp(r.totalRevenue)}</TableCell>
-                            <TableCell className={`text-right text-xs font-mono ${r.sisaTagihan > 0 ? "text-destructive" : "text-foreground"}`}>
-                              {formatRp(r.sisaTagihan)}
+                            <TableCell className="text-center text-xs font-mono">{r.pcsWift.toLocaleString("id-ID")}</TableCell>
+                            <TableCell className="text-center text-xs font-mono">{r.pcsLuar.toLocaleString("id-ID")}</TableCell>
+                            <TableCell className="text-right text-xs font-mono font-medium whitespace-nowrap">
+                              <span className="md:hidden">{compactRupiah(r.totalRevenue)}</span>
+                              <span className="hidden md:inline">{formatRp(r.totalRevenue)}</span>
+                            </TableCell>
+                            <TableCell className={`text-right text-xs font-mono whitespace-nowrap ${r.sisaTagihan > 0 ? "text-destructive" : "text-foreground"}`}>
+                              <span className="md:hidden">{compactRupiah(r.sisaTagihan)}</span>
+                              <span className="hidden md:inline">{formatRp(r.sisaTagihan)}</span>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -388,9 +454,15 @@ const Reports = () => {
                           <TableCell colSpan={role !== "sales" ? 2 : 1} className="text-xs text-center py-3">TOTAL</TableCell>
                           <TableCell className="text-right text-xs font-mono">{totalOrders}</TableCell>
                           <TableCell className="text-right text-xs font-mono text-primary">{totalPcs.toLocaleString("id-ID")}</TableCell>
-                          <TableCell className="text-right text-xs font-mono text-primary whitespace-nowrap">{formatRp(totalRevenue)}</TableCell>
-                          <TableCell className={`text-right text-xs font-mono ${totalSisaTagihan > 0 ? "text-destructive font-bold" : "text-foreground"}`}>
-                            {formatRp(totalSisaTagihan)}
+                          <TableCell className="text-center text-xs font-mono">{totalPcsWift.toLocaleString("id-ID")}</TableCell>
+                          <TableCell className="text-center text-xs font-mono">{totalPcsLuar.toLocaleString("id-ID")}</TableCell>
+                          <TableCell className="text-right text-xs font-mono text-primary whitespace-nowrap">
+                            <span className="md:hidden">{compactRupiah(totalRevenue)}</span>
+                            <span className="hidden md:inline">{formatRp(totalRevenue)}</span>
+                          </TableCell>
+                          <TableCell className={`text-right text-xs font-mono whitespace-nowrap ${totalSisaTagihan > 0 ? "text-destructive font-bold" : "text-foreground"}`}>
+                            <span className="md:hidden">{compactRupiah(totalSisaTagihan)}</span>
+                            <span className="hidden md:inline">{formatRp(totalSisaTagihan)}</span>
                           </TableCell>
                         </TableRow>
                       </>
