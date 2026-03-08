@@ -46,7 +46,7 @@ const superadminItems = [
 function AppSidebar() {
   const { signOut, role } = useAuth();
   const location = useLocation();
-  const { state } = useSidebar();
+  const { state, setOpenMobile, isMobile } = useSidebar();
   const collapsed = state === "collapsed";
 
   const navItems = [
@@ -54,6 +54,10 @@ function AppSidebar() {
     ...(role === "admin" || role === "superadmin" ? adminItems : []),
     ...(role === "superadmin" ? superadminItems : []),
   ];
+
+  const handleNavClick = () => {
+    if (isMobile) setOpenMobile(false);
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -77,7 +81,7 @@ function AppSidebar() {
                     isActive={location.pathname === item.to}
                     tooltip={item.label}
                   >
-                    <Link to={item.to}>
+                    <Link to={item.to} onClick={handleNavClick}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.label}</span>
                     </Link>
