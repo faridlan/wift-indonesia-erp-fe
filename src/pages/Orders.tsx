@@ -72,6 +72,7 @@ const Orders = () => {
   const { data: salesProfiles = [] } = useSalesProfiles(role);
   const { data: allOrderItems = [] } = useOrderItems();
   const { data: activePO } = useActivePOPeriod();
+  const { data: allPOPeriods = [] } = usePOPeriods();
   const createOrderMutation = useCreateOrder();
   const updateOrderMutation = useUpdateOrder();
   const deleteOrderMutation = useDeleteOrder();
