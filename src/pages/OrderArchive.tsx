@@ -462,6 +462,28 @@ const OrderArchive = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Invoice Options Dialog */}
+      <Dialog open={invoiceOptionsOpen} onOpenChange={setInvoiceOptionsOpen}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Opsi Invoice</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>Stempel</Label>
+              <Switch checked={invoiceOpts.withStamp} onCheckedChange={(v) => setInvoiceOpts(p => ({ ...p, withStamp: v }))} />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label>Tanda Tangan</Label>
+              <Switch checked={invoiceOpts.withSignature} onCheckedChange={(v) => setInvoiceOpts(p => ({ ...p, withSignature: v }))} />
+            </div>
+            <Button className="w-full" onClick={handleDownloadInvoice}>
+              <FileDown className="h-4 w-4 mr-2" />Download Invoice
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
