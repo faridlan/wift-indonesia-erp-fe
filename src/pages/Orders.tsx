@@ -775,7 +775,20 @@ const Orders = () => {
                               )}
                             </div>
 
-                            {/* 2. Qty */}
+                            {/* 2. Jenis Pengerjaan */}
+                            <div className="col-span-12 md:col-span-6 space-y-1">
+                              <Label className="text-[10px] font-medium text-muted-foreground">Pengerjaan</Label>
+                              <div className="flex items-center gap-2">
+                                <Badge variant={item.work_type === "wift" ? "default" : "outline"} className="cursor-pointer text-xs" onClick={() => updateItem(index, "work_type", "wift")}>
+                                  WIFT
+                                </Badge>
+                                <Badge variant={item.work_type === "luar" ? "default" : "outline"} className="cursor-pointer text-xs" onClick={() => updateItem(index, "work_type", "luar")}>
+                                  Luar
+                                </Badge>
+                              </div>
+                            </div>
+
+                            {/* 3. Qty */}
                             <div className="col-span-4 md:col-span-2 space-y-1">
                               <Label className={cn("text-[10px] font-medium", itemError?.quantity ? "text-destructive" : "text-muted-foreground")}>
                                 Qty
