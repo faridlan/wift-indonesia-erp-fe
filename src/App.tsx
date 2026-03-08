@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
 import Orders from "./pages/Orders";
 import OrderItems from "./pages/OrderItems";
+import OrderArchive from "./pages/OrderArchive";
 import Payments from "./pages/Payments";
 import Profile from "./pages/Profile";
 import Users from "./pages/Users";
