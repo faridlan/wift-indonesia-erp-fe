@@ -1149,7 +1149,7 @@ const Orders = () => {
                     <TableCell>Rp {(o.total_price || 0).toLocaleString("id-ID")}</TableCell>
                     <TableCell>Rp {(o.amount_paid || 0).toLocaleString("id-ID")}</TableCell>
                     <TableCell><Badge variant={o.payment_status === "paid" ? "default" : "outline"}>{o.payment_status}</Badge></TableCell>
-                    {selectedPOTab === "all" && <TableCell className="text-xs text-muted-foreground">{getPOName(o.po_period_id)}</TableCell>}
+                    
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" className="text-primary hover:text-primary/80" onClick={() => { setSelectedOrderForPayment(o); setPaymentAmount(String((o.total_price || 0) - (o.amount_paid || 0))); setPaymentDialogOpen(true); }} title="Input Pembayaran"><Receipt className="h-4 w-4" /></Button>
