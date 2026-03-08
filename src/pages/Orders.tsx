@@ -392,8 +392,8 @@ const Orders = () => {
     // PO filter
     if (selectedPOTab === "active") {
       if (activePO && o.po_period_id !== activePO.id) return false;
-      if (!activePO) return false; // no active PO, show nothing in active tab
-    } else if (selectedPOTab !== "all") {
+      if (!activePO) return false;
+    } else {
       if (o.po_period_id !== selectedPOTab) return false;
     }
     if (statusFilter !== "all" && o.status !== statusFilter) return false;
