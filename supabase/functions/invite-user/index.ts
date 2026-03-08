@@ -5,6 +5,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const EMAIL_DOMAIN = "app.local";
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -23,6 +25,7 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    // Verify caller is superadmin
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) {
@@ -35,36 +38,65 @@ Deno.serve(async (req) => {
     const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
     if (profile?.role !== "superadmin") {
       return new Response(
-        JSON.stringify({ error: "Forbidden" }),
+        JSON.stringify({ error: "Forbidden: hanya superadmin" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const body = await req.json();
-    const email = body?.email?.trim();
-    if (!email) {
+    const username = body?.username?.trim()?.toLowerCase();
+    const password = body?.password;
+    const full_name = body?.full_name?.trim() || "";
+    const role = body?.role === "admin" ? "admin" : "sales";
+
+    if (!username) {
       return new Response(
-        JSON.stringify({ error: "Email wajib diisi" }),
+        JSON.stringify({ error: "Username wajib diisi" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const full_name = body?.full_name?.trim() ?? "";
-    let role = body?.role === "admin" ? "admin" : "sales";
+    if (!password || password.length < 6) {
+      return new Response(
+        JSON.stringify({ error: "Password minimal 6 karakter" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
-      data: { full_name, role },
+    // Validate username format (alphanumeric, dots, underscores, hyphens)
+    if (!/^[a-z0-9._-]+$/.test(username)) {
+      return new Response(
+        JSON.stringify({ error: "Username hanya boleh huruf kecil, angka, titik, underscore, dan strip" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const email = `${username}@${EMAIL_DOMAIN}`;
+
+    // Create user with admin API
+    const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name, role, username },
     });
 
-    if (inviteError) {
+    if (createError) {
+      // Handle duplicate
+      if (createError.message?.includes("already been registered") || createError.message?.includes("already exists")) {
+        return new Response(
+          JSON.stringify({ error: "Username sudah digunakan" }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       return new Response(
-        JSON.stringify({ error: inviteError.message }),
+        JSON.stringify({ error: createError.message }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     return new Response(
-      JSON.stringify({ message: "Undangan terkirim ke email." }),
+      JSON.stringify({ message: `User "${username}" berhasil dibuat.`, user_id: newUser.user.id }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
