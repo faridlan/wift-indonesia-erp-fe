@@ -49,6 +49,9 @@ const OrderArchive = () => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
+  const [invoiceOptionsOpen, setInvoiceOptionsOpen] = useState(false);
+  const [invoiceTargetOrder, setInvoiceTargetOrder] = useState<Order | null>(null);
+  const [invoiceOpts, setInvoiceOpts] = useState({ withStamp: true, withSignature: true });
   const pageSize = 15;
 
   const customerName = (id: string | null) => customers.find((c) => String(c.id) === String(id))?.name || "-";
