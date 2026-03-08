@@ -898,7 +898,7 @@ const Orders = () => {
                   })}
 
                   {/* Ringkasan Total */}
-                  <div className="mt-6 space-y-2 rounded-lg bg-muted/20 p-4 border border-dashed">
+                  <div className="mt-4 space-y-2 rounded-lg bg-muted/20 p-4 border border-dashed">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Subtotal Produk</span>
                       <span className="font-medium text-foreground">Rp {subtotalAmount.toLocaleString("id-ID")}</span>
@@ -907,7 +907,14 @@ const Orders = () => {
                     {ppnPct > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">PPN ({ppnPct}%)</span>
-                        <span className="font-medium text-foreground text-destructive">+ Rp {ppnAmount.toLocaleString("id-ID")}</span>
+                        <span className="font-medium text-destructive">+ Rp {ppnAmount.toLocaleString("id-ID")}</span>
+                      </div>
+                    )}
+
+                    {shippingCostAmount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Ongkir{form.expedition_name ? ` (${form.expedition_name})` : ""}</span>
+                        <span className="font-medium text-foreground">+ Rp {shippingCostAmount.toLocaleString("id-ID")}</span>
                       </div>
                     )}
 
@@ -918,6 +925,30 @@ const Orders = () => {
                       <span className="text-lg font-bold text-primary">Rp {totalAmount.toLocaleString("id-ID")}</span>
                     </div>
                   </div>
+
+                  {/* DP / Pembayaran Awal (hanya saat create) */}
+                  {!editing && (
+                    <div className="space-y-2 rounded-lg border border-border p-3">
+                      <Label className="text-sm font-medium">DP / Pembayaran Awal (Opsional)</Label>
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-2 text-[10px] font-medium text-muted-foreground">Rp</span>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          className="pl-7 h-9"
+                          value={formatRupiah(form.dp_amount)}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/\D/g, "");
+                            setForm({ ...form, dp_amount: raw });
+                          }}
+                          placeholder="0"
+                        />
+                      </div>
+                      {parseInt(form.dp_amount) > 0 && (
+                        <p className="text-xs text-muted-foreground">DP akan dicatat otomatis sebagai pembayaran awal.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <Button type="submit" className="w-full" disabled={submitting}>
