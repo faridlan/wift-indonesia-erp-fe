@@ -105,6 +105,30 @@ const Orders = () => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 10;
+  const [selectedPOTab, setSelectedPOTab] = useState<string>("active");
+
+  // PCS per order (sum of quantities from order_items)
+  const pcsPerOrder = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const item of allOrderItems) {
+      if (item.order_id) {
+        map[item.order_id] = (map[item.order_id] || 0) + item.quantity;
+      }
+    }
+    return map;
+  }, [allOrderItems]);
+
+  // Determine which PO to show based on tab
+  const selectedPOId = useMemo(() => {
+    if (selectedPOTab === "active") return activePO?.id ?? null;
+    if (selectedPOTab === "all") return null;
+    return selectedPOTab; // PO period id
+  }, [selectedPOTab, activePO]);
+
+  // Other PO periods (not the active one)
+  const otherPOPeriods = useMemo(() => {
+    return allPOPeriods.filter(p => p.id !== activePO?.id);
+  }, [allPOPeriods, activePO]);
 
   // Payment 
 
