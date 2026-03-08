@@ -622,6 +622,38 @@ const Orders = () => {
                   </div>
                 </div>
 
+                {/* Ongkir Section */}
+                <div className="space-y-3 rounded-lg border border-border p-3">
+                  <Label className="text-sm font-medium">Ongkir (Pengiriman)</Label>
+                  <div className="flex items-center gap-3">
+                    <Badge variant={form.shipping_type === "cod" ? "default" : "outline"} className="cursor-pointer" onClick={() => setForm({ ...form, shipping_type: "cod", shipping_cost: "" })}>
+                      COD
+                    </Badge>
+                    <Badge variant={form.shipping_type === "non_cod" ? "default" : "outline"} className="cursor-pointer" onClick={() => setForm({ ...form, shipping_type: "non_cod" })}>
+                      Non COD
+                    </Badge>
+                  </div>
+                  {form.shipping_type === "non_cod" && (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Biaya Ongkir</Label>
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-2 text-[10px] font-medium text-muted-foreground">Rp</span>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          className="pl-7 h-9"
+                          value={formatRupiah(form.shipping_cost)}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/\D/g, "");
+                            setForm({ ...form, shipping_cost: raw });
+                          }}
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Inline new customer form */}
 
                 {/* PPN Section */}
