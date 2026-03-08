@@ -12,6 +12,8 @@ export type OrderPayload = {
   poPeriodId?: string;
   shippingType?: string;
   shippingCost?: number;
+  expeditionName?: string;
+  weightKg?: number;
 };
 
 export type OrderUpdatePayload = {
@@ -21,6 +23,8 @@ export type OrderUpdatePayload = {
   ppnPercentage?: number;
   shippingType?: string;
   shippingCost?: number;
+  expeditionName?: string;
+  weightKg?: number;
 };
 
 export async function getOrders(): Promise<Order[]> {
