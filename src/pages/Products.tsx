@@ -75,15 +75,7 @@ const Products = () => {
     } finally { setUploadingMain(false); }
   };
 
-  const handleSizeChart = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingChart(true);
-    try {
-      const url = await handleFileUpload(file, "size-charts");
-      setForm((f) => ({ ...f, size_chart_url: url }));
-    } finally { setUploadingChart(false); }
-  };
+
 
   const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
