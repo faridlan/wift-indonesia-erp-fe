@@ -122,7 +122,6 @@ const Orders = () => {
   // Determine which PO to show based on tab
   const selectedPOId = useMemo(() => {
     if (selectedPOTab === "active") return activePO?.id ?? null;
-    if (selectedPOTab === "all") return null;
     return selectedPOTab; // PO period id
   }, [selectedPOTab, activePO]);
 
