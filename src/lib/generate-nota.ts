@@ -253,5 +253,6 @@ export function generateNotaPDF({ order, items, customer }: NotaData) {
     align: "center",
   });
 
-  doc.save(`Nota-${order.order_number}.pdf`);
+  const custName = (customer?.name || "Unknown").replace(/\s+/g, "_");
+  doc.save(`Nota-${custName}-${order.order_number}.pdf`);
 }
