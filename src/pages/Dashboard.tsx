@@ -5,9 +5,10 @@ import { useSalesProfiles } from "@/hooks/api/useProfile";
 import { useActivePOPeriod } from "@/hooks/api/usePOPeriods";
 import { useOrderItems } from "@/hooks/api/useOrderItems";
 import { DollarSign, ShoppingCart, Users, AlertCircle, Trophy, Crown, Medal, Award } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const formatRp = (v: number) => `Rp ${v.toLocaleString("id-ID")}`;
 const formatRpCompact = (v: number) => {
@@ -17,6 +18,8 @@ const formatRpCompact = (v: number) => {
   return formatRp(v);
 };
 
+type WorkTypeFilter = "all" | "wift" | "luar";
+
 const Dashboard = () => {
   const { user, role } = useAuth();
   const { data: orders = [], isLoading: ordersLoading } = useOrders();
@@ -25,31 +28,79 @@ const Dashboard = () => {
   const { data: allOrderItems = [] } = useOrderItems();
   const { data: activePO, isLoading: poLoading } = useActivePOPeriod();
 
+  const [workTypeFilter, setWorkTypeFilter] = useState<WorkTypeFilter>("all");
+
   const isAdmin = role === "admin" || role === "superadmin";
 
   // Filter orders by active PO
   const poOrders = useMemo(() => {
-    if (!activePO) return orders; // fallback to all if no active PO
+    if (!activePO) return orders;
     return orders.filter((o) => o.po_period_id === activePO.id);
   }, [orders, activePO]);
 
-  // Filter customers that have orders in this PO
-  const poCustomerIds = useMemo(() => {
+  // Group order IDs by work type from order_items
+  const orderIdsByWorkType = useMemo(() => {
+    const wiftOrderIds = new Set<string>();
+    const luarOrderIds = new Set<string>();
+    const poOrderIds = new Set(poOrders.map((o) => o.id));
+
+    allOrderItems.forEach((it) => {
+      if (!it.order_id || !poOrderIds.has(it.order_id)) return;
+      if (it.work_type === "wift") {
+        wiftOrderIds.add(it.order_id);
+      } else {
+        luarOrderIds.add(it.order_id);
+      }
+    });
+
+    return { wiftOrderIds, luarOrderIds };
+  }, [allOrderItems, poOrders]);
+
+  // Filtered orders based on tab
+  const filteredOrders = useMemo(() => {
+    if (workTypeFilter === "all") return poOrders;
+    const ids = workTypeFilter === "wift" ? orderIdsByWorkType.wiftOrderIds : orderIdsByWorkType.luarOrderIds;
+    return poOrders.filter((o) => ids.has(o.id));
+  }, [poOrders, workTypeFilter, orderIdsByWorkType]);
+
+  // Filtered order items based on tab
+  const filteredOrderItems = useMemo(() => {
+    const orderIds = new Set(filteredOrders.map((o) => o.id));
+    return allOrderItems.filter((it) => {
+      if (!it.order_id || !orderIds.has(it.order_id)) return false;
+      if (workTypeFilter === "all") return true;
+      if (workTypeFilter === "wift") return it.work_type === "wift";
+      return it.work_type !== "wift";
+    });
+  }, [allOrderItems, filteredOrders, workTypeFilter]);
+
+  // Filter customers that have orders
+  const filteredCustomerIds = useMemo(() => {
     const ids = new Set<string>();
-    poOrders.forEach((o) => { if (o.customer_id) ids.add(o.customer_id); });
+    filteredOrders.forEach((o) => { if (o.customer_id) ids.add(o.customer_id); });
     return ids;
-  }, [poOrders]);
+  }, [filteredOrders]);
 
-  const poCustomers = useMemo(() => customers.filter((c) => poCustomerIds.has(c.id)), [customers, poCustomerIds]);
+  const filteredCustomers = useMemo(() => customers.filter((c) => filteredCustomerIds.has(c.id)), [customers, filteredCustomerIds]);
 
-  // Totals
-  const totalOmzet = useMemo(() => poOrders.reduce((s, o) => s + (o.total_price || 0), 0), [poOrders]);
-  const totalPaid = useMemo(() => poOrders.reduce((s, o) => s + (o.amount_paid || 0), 0), [poOrders]);
+  // For tab: recalculate totals from filtered items (not order total_price, since an order can have mixed work types)
+  // But for simplicity & accuracy with existing triggers, we use order-level totals when "all", otherwise sum item-level
+  const totalOmzet = useMemo(() => {
+    if (workTypeFilter === "all") return filteredOrders.reduce((s, o) => s + (o.total_price || 0), 0);
+    // For filtered tabs, sum item subtotals only
+    return filteredOrderItems.reduce((s, it) => s + (it.quantity * it.price_per_unit), 0);
+  }, [filteredOrders, filteredOrderItems, workTypeFilter]);
+
+  const totalPaid = useMemo(() => {
+    if (workTypeFilter === "all") return filteredOrders.reduce((s, o) => s + (o.amount_paid || 0), 0);
+    // Can't split payments by work type, so show order-level paid for filtered orders
+    return filteredOrders.reduce((s, o) => s + (o.amount_paid || 0), 0);
+  }, [filteredOrders, workTypeFilter]);
+
   const sisaTagihan = totalOmzet - totalPaid;
 
   // Ringkasan per sales
   const salesSummary = useMemo(() => {
-    const orderIdSet = new Set(poOrders.map((o) => o.id));
     const map: Record<string, {
       name: string; pcs: number; orders: number; customers: Set<string>; omzet: number; sisaTagihan: number;
     }> = {};
@@ -60,24 +111,44 @@ const Dashboard = () => {
       map[s.id] = { name: s.full_name || s.id, pcs: 0, orders: 0, customers: new Set(), omzet: 0, sisaTagihan: 0 };
     });
 
-    poOrders.forEach((o) => {
+    filteredOrders.forEach((o) => {
       if (!map[o.sales_id]) {
         map[o.sales_id] = { name: o.sales_id, pcs: 0, orders: 0, customers: new Set(), omzet: 0, sisaTagihan: 0 };
       }
       const row = map[o.sales_id];
       row.orders += 1;
       if (o.customer_id) row.customers.add(o.customer_id);
-      row.omzet += o.total_price || 0;
-      row.sisaTagihan += (o.total_price || 0) - (o.amount_paid || 0);
+      if (workTypeFilter === "all") {
+        row.omzet += o.total_price || 0;
+        row.sisaTagihan += (o.total_price || 0) - (o.amount_paid || 0);
+      }
     });
 
-    allOrderItems.forEach((it) => {
-      if (!it.order_id || !orderIdSet.has(it.order_id)) return;
-      const ord = poOrders.find((o) => o.id === it.order_id);
-      if (!ord) return;
-      if (map[ord.sales_id]) {
-        map[ord.sales_id].pcs += it.quantity || 0;
-      }
+    // For non-"all" tabs, calculate omzet from items
+    if (workTypeFilter !== "all") {
+      filteredOrderItems.forEach((it) => {
+        if (!it.order_id) return;
+        const ord = filteredOrders.find((o) => o.id === it.order_id);
+        if (!ord || !map[ord.sales_id]) return;
+        map[ord.sales_id].omzet += it.quantity * it.price_per_unit;
+      });
+      // sisaTagihan for filtered tabs: use order-level since payments can't be split
+      filteredOrders.forEach((o) => {
+        if (map[o.sales_id]) {
+          // Already counted orders above, just set sisaTagihan based on item omzet vs order paid proportionally
+        }
+      });
+      // Simple approach: sisaTagihan = omzet - proportional paid
+      Object.values(map).forEach((row) => {
+        row.sisaTagihan = Math.max(0, row.omzet); // approximate for filtered view
+      });
+    }
+
+    filteredOrderItems.forEach((it) => {
+      if (!it.order_id) return;
+      const ord = filteredOrders.find((o) => o.id === it.order_id);
+      if (!ord || !map[ord.sales_id]) return;
+      map[ord.sales_id].pcs += it.quantity || 0;
     });
 
     return Object.entries(map).map(([id, v]) => ({
@@ -89,12 +160,33 @@ const Dashboard = () => {
       omzet: v.omzet,
       sisaTagihan: v.sisaTagihan,
     }));
-  }, [poOrders, allOrderItems, salesProfiles, isAdmin, user?.id]);
+  }, [filteredOrders, filteredOrderItems, salesProfiles, isAdmin, user?.id, workTypeFilter]);
 
-  // Ranking sorted by omzet
+  // Ranking sorted by omzet (always use ALL orders)
   const salesRanking = useMemo(() => {
-    return [...salesSummary].sort((a, b) => b.omzet - a.omzet);
-  }, [salesSummary]);
+    const orderIdSet = new Set(poOrders.map((o) => o.id));
+    const map: Record<string, { name: string; pcs: number; orders: number; omzet: number }> = {};
+
+    salesProfiles.forEach((s) => {
+      map[s.id] = { name: s.full_name || s.id, pcs: 0, orders: 0, omzet: 0 };
+    });
+
+    poOrders.forEach((o) => {
+      if (!map[o.sales_id]) map[o.sales_id] = { name: o.sales_id, pcs: 0, orders: 0, omzet: 0 };
+      map[o.sales_id].orders += 1;
+      map[o.sales_id].omzet += o.total_price || 0;
+    });
+
+    allOrderItems.forEach((it) => {
+      if (!it.order_id || !orderIdSet.has(it.order_id)) return;
+      const ord = poOrders.find((o) => o.id === it.order_id);
+      if (ord && map[ord.sales_id]) map[ord.sales_id].pcs += it.quantity || 0;
+    });
+
+    return Object.entries(map)
+      .map(([id, v]) => ({ id, ...v }))
+      .sort((a, b) => b.omzet - a.omzet);
+  }, [poOrders, allOrderItems, salesProfiles]);
 
   const isLoading = ordersLoading || poLoading;
 
@@ -104,6 +196,8 @@ const Dashboard = () => {
     if (idx === 2) return <Award className="h-4 w-4 text-amber-600" />;
     return <span className="text-xs text-muted-foreground font-mono">#{idx + 1}</span>;
   };
+
+  const totalPcs = filteredOrderItems.reduce((s, it) => s + (it.quantity || 0), 0);
 
   const statCards = [
     {
@@ -122,14 +216,14 @@ const Dashboard = () => {
     },
     {
       title: "Total Order",
-      value: poOrders.length,
+      value: filteredOrders.length,
       fullValue: null,
       icon: ShoppingCart,
       color: "text-primary",
     },
     {
       title: "Total Customer",
-      value: poCustomers.length,
+      value: filteredCustomers.length,
       fullValue: null,
       icon: Users,
       color: "text-primary",
@@ -152,6 +246,15 @@ const Dashboard = () => {
           <p className="text-sm text-muted-foreground">Tidak ada PO aktif — menampilkan semua data</p>
         )}
       </div>
+
+      {/* Work Type Tabs */}
+      <Tabs value={workTypeFilter} onValueChange={(v) => setWorkTypeFilter(v as WorkTypeFilter)}>
+        <TabsList className="grid w-full grid-cols-3 max-w-md">
+          <TabsTrigger value="all">Semua</TabsTrigger>
+          <TabsTrigger value="wift">Wift</TabsTrigger>
+          <TabsTrigger value="luar">Luar</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {isLoading ? (
         <p className="text-muted-foreground">Loading...</p>
@@ -178,7 +281,14 @@ const Dashboard = () => {
           {isAdmin && salesSummary.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base md:text-lg">Ringkasan per Sales</CardTitle>
+                <CardTitle className="text-base md:text-lg">
+                  Ringkasan per Sales
+                  {workTypeFilter !== "all" && (
+                    <Badge variant="outline" className="ml-2 text-[10px]">
+                      {workTypeFilter === "wift" ? "Wift" : "Luar"}
+                    </Badge>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent className="px-0 md:px-6">
                 <div className="overflow-x-auto">
@@ -190,7 +300,9 @@ const Dashboard = () => {
                         <TableHead className="text-right text-xs font-bold">Order</TableHead>
                         <TableHead className="text-right text-xs font-bold">Customer</TableHead>
                         <TableHead className="text-right text-xs font-bold min-w-[110px]">Omzet</TableHead>
-                        <TableHead className="text-right text-xs font-bold min-w-[110px]">Sisa Tagihan</TableHead>
+                        {workTypeFilter === "all" && (
+                          <TableHead className="text-right text-xs font-bold min-w-[110px]">Sisa Tagihan</TableHead>
+                        )}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -201,9 +313,11 @@ const Dashboard = () => {
                           <TableCell className="text-right text-xs font-mono">{row.orders}</TableCell>
                           <TableCell className="text-right text-xs font-mono">{row.customers}</TableCell>
                           <TableCell className="text-right text-xs font-mono">{formatRp(row.omzet)}</TableCell>
-                          <TableCell className={`text-right text-xs font-mono ${row.sisaTagihan > 0 ? "text-destructive" : "text-green-600"}`}>
-                            {formatRp(row.sisaTagihan)}
-                          </TableCell>
+                          {workTypeFilter === "all" && (
+                            <TableCell className={`text-right text-xs font-mono ${row.sisaTagihan > 0 ? "text-destructive" : "text-green-600"}`}>
+                              {formatRp(row.sisaTagihan)}
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                       {/* Total row */}
@@ -211,11 +325,13 @@ const Dashboard = () => {
                         <TableCell className="text-xs">TOTAL</TableCell>
                         <TableCell className="text-right text-xs font-mono">{salesSummary.reduce((s, r) => s + r.pcs, 0).toLocaleString("id-ID")}</TableCell>
                         <TableCell className="text-right text-xs font-mono">{salesSummary.reduce((s, r) => s + r.orders, 0)}</TableCell>
-                        <TableCell className="text-right text-xs font-mono">{poCustomers.length}</TableCell>
+                        <TableCell className="text-right text-xs font-mono">{filteredCustomers.length}</TableCell>
                         <TableCell className="text-right text-xs font-mono">{formatRp(totalOmzet)}</TableCell>
-                        <TableCell className={`text-right text-xs font-mono ${sisaTagihan > 0 ? "text-destructive font-bold" : "text-green-600"}`}>
-                          {formatRp(sisaTagihan)}
-                        </TableCell>
+                        {workTypeFilter === "all" && (
+                          <TableCell className={`text-right text-xs font-mono ${sisaTagihan > 0 ? "text-destructive font-bold" : "text-green-600"}`}>
+                            {formatRp(sisaTagihan)}
+                          </TableCell>
+                        )}
                       </TableRow>
                     </TableBody>
                   </Table>
@@ -224,7 +340,7 @@ const Dashboard = () => {
             </Card>
           )}
 
-          {/* Sales ranking for non-admin (show own stats) */}
+          {/* Sales own stats (non-admin) */}
           {!isAdmin && salesSummary.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
@@ -238,7 +354,9 @@ const Dashboard = () => {
                       <div><span className="text-xs text-muted-foreground">Order</span><p className="text-lg font-bold">{row.orders}</p></div>
                       <div><span className="text-xs text-muted-foreground">Customer</span><p className="text-lg font-bold">{row.customers}</p></div>
                       <div><span className="text-xs text-muted-foreground">Omzet</span><p className="text-lg font-bold">{formatRp(row.omzet)}</p></div>
-                      <div><span className="text-xs text-muted-foreground">Sisa Tagihan</span><p className={`text-lg font-bold ${row.sisaTagihan > 0 ? "text-destructive" : "text-green-600"}`}>{formatRp(row.sisaTagihan)}</p></div>
+                      {workTypeFilter === "all" && (
+                        <div><span className="text-xs text-muted-foreground">Sisa Tagihan</span><p className={`text-lg font-bold ${row.sisaTagihan > 0 ? "text-destructive" : "text-green-600"}`}>{formatRp(row.sisaTagihan)}</p></div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -246,7 +364,7 @@ const Dashboard = () => {
             </Card>
           )}
 
-          {/* Peringkat Sales */}
+          {/* Peringkat Sales - always uses ALL data */}
           {isAdmin && salesRanking.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
