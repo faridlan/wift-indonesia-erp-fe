@@ -6,9 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAllProfiles, useUpdateProfileRole } from "@/hooks/api/useProfile";
+import { useAllProfiles, useUpdateProfileRole, useUpdateProfilePosition } from "@/hooks/api/useProfile";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, UserPlus, Eye, EyeOff } from "lucide-react";
+import { Loader2, UserPlus, Eye, EyeOff, Pencil, Check, X } from "lucide-react";
 import { createUser } from "@/services/invite-user";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -29,10 +29,15 @@ const Users = () => {
   const queryClient = useQueryClient();
   const { data: profiles = [], isLoading, isError, error } = useAllProfiles(role === "superadmin");
   const updateRoleMutation = useUpdateProfileRole();
+  const updatePositionMutation = useUpdateProfilePosition();
 
   const [form, setForm] = useState({ username: "", password: "", full_name: "", role: "sales" as "sales" | "admin" });
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Position editing state
+  const [editingPositionId, setEditingPositionId] = useState<string | null>(null);
+  const [editPositionValue, setEditPositionValue] = useState("");
 
   const getErrorMessage = (err: unknown) => {
     const message = err instanceof Error ? err.message : "Terjadi kesalahan.";
@@ -45,6 +50,26 @@ const Users = () => {
     try {
       await updateRoleMutation.mutateAsync({ profileId, role: newRole });
       toast({ title: "Berhasil", description: "Role diperbarui." });
+    } catch (err) {
+      toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
+    }
+  };
+
+  const startEditPosition = (profileId: string, currentPosition: string) => {
+    setEditingPositionId(profileId);
+    setEditPositionValue(currentPosition);
+  };
+
+  const cancelEditPosition = () => {
+    setEditingPositionId(null);
+    setEditPositionValue("");
+  };
+
+  const savePosition = async (profileId: string) => {
+    try {
+      await updatePositionMutation.mutateAsync({ profileId, position: editPositionValue });
+      toast({ title: "Berhasil", description: "Jabatan diperbarui." });
+      setEditingPositionId(null);
     } catch (err) {
       toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
     }
@@ -78,16 +103,48 @@ const Users = () => {
     }
   };
 
-  // Extract username from profile (strip @app.local from metadata or show full_name)
-  const getDisplayName = (p: any) => {
-    return p.full_name || p.id.slice(0, 8);
+  const getDisplayName = (p: any) => p.full_name || p.id.slice(0, 8);
+
+  const PositionCell = ({ profile: p }: { profile: any }) => {
+    const isEditing = editingPositionId === p.id;
+    if (isEditing) {
+      return (
+        <div className="flex items-center gap-1.5">
+          <Input
+            value={editPositionValue}
+            onChange={(e) => setEditPositionValue(e.target.value)}
+            placeholder="Jabatan"
+            className="h-8 text-sm"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") savePosition(p.id);
+              if (e.key === "Escape") cancelEditPosition();
+            }}
+          />
+          <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => savePosition(p.id)} disabled={updatePositionMutation.isPending}>
+            <Check className="h-3.5 w-3.5 text-green-600" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={cancelEditPosition}>
+            <X className="h-3.5 w-3.5 text-destructive" />
+          </Button>
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="text-sm">{p.position || "—"}</span>
+        <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => startEditPosition(p.id, p.position || "")}>
+          <Pencil className="h-3 w-3 text-muted-foreground" />
+        </Button>
+      </div>
+    );
   };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1">Manajemen User</h1>
-        <p className="text-muted-foreground text-sm">Kelola user dan role (hanya Super Admin).</p>
+        <p className="text-muted-foreground text-sm">Kelola user, role, dan jabatan (hanya Super Admin).</p>
       </div>
 
       {/* Create User Form */}
@@ -184,6 +241,7 @@ const Users = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nama</TableHead>
+                    <TableHead>Jabatan</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead className="w-48">Ubah Role</TableHead>
                   </TableRow>
@@ -192,6 +250,7 @@ const Users = () => {
                   {profiles.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell className="font-medium">{getDisplayName(p)}</TableCell>
+                      <TableCell><PositionCell profile={p} /></TableCell>
                       <TableCell><span className="capitalize">{p.role || "—"}</span></TableCell>
                       <TableCell>
                         <Select
@@ -213,7 +272,7 @@ const Users = () => {
                   ))}
                   {profiles.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center text-muted-foreground">Belum ada user.</TableCell>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground">Belum ada user.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -230,20 +289,27 @@ const Users = () => {
                       <p className="text-xs text-muted-foreground capitalize">{p.role || "—"}</p>
                     </div>
                   </div>
-                  <Select
-                    value={p.role || ""}
-                    onValueChange={(v) => handleRoleChange(p.id, v)}
-                    disabled={updateRoleMutation.isPending}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Ubah role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROLES.map((r) => (
-                        <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Jabatan</Label>
+                    <PositionCell profile={p} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Ubah Role</Label>
+                    <Select
+                      value={p.role || ""}
+                      onValueChange={(v) => handleRoleChange(p.id, v)}
+                      disabled={updateRoleMutation.isPending}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Ubah role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ROLES.map((r) => (
+                          <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </Card>
               ))}
               {profiles.length === 0 && (
