@@ -78,6 +78,8 @@ export async function updateOrder(payload: OrderUpdatePayload): Promise<void> {
       ppn_percentage: payload.ppnPercentage ?? 0,
       shipping_type: payload.shippingType ?? 'cod',
       shipping_cost: payload.shippingCost ?? 0,
+      expedition_name: payload.expeditionName || null,
+      weight_kg: payload.weightKg || null,
     })
     .eq("id", payload.id);
 
