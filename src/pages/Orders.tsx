@@ -1152,28 +1152,8 @@ const Orders = () => {
                     
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="text-primary hover:text-primary/80" onClick={() => { setSelectedOrderForPayment(o); setPaymentAmount(String((o.total_price || 0) - (o.amount_paid || 0))); setPaymentDialogOpen(true); }} title="Input Pembayaran"><Receipt className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => openDetail(o)}><Eye className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDownloadInvoice(o)} title="Download Invoice"><FileDown className="h-4 w-4" /></Button>
-                        {o.payment_status === "paid" && (
-                          <Button variant="ghost" size="icon" onClick={() => handleDownloadNota(o)} title="Download Nota"><Receipt className="h-4 w-4" /></Button>
-                        )}
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(o)}><Pencil className="h-4 w-4" /></Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Hapus order?</AlertDialogTitle>
-                              <AlertDialogDescription>Data order dan semua item akan dihapus secara permanen.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Batal</AlertDialogCancel>
-                              <AlertDialogAction onClick={async () => { try { await deleteOrderMutation.mutateAsync(o.id); toast({ title: "Berhasil", description: "Order dihapus." }); } catch (err) { toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" }); } }}>Hapus</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <Button variant="ghost" size="icon" onClick={() => openDetail(o)} title="Detail"><Eye className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(o)} title="Edit"><Pencil className="h-4 w-4" /></Button>
                       </div>
                     </TableCell>
                   </TableRow>
