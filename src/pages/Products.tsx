@@ -37,7 +37,7 @@ const Products = () => {
 
   const { data: galleryImages = [] } = useProductImages(selectedProductId);
 
-  const resetForm = () => setForm({ name: "", slug: "", price: "", category_id: "", description: "", image_url: "", size_chart_url: "" });
+  const resetForm = () => setForm({ name: "", slug: "", price: "", category_id: "", description: "", image_url: "" });
 
   const openCreate = () => { resetForm(); setEditingProduct(null); setDialogOpen(true); };
 
