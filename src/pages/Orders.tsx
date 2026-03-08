@@ -790,16 +790,95 @@ const Orders = () => {
                         )}
 
                         <CardContent className="pt-4 pb-2 px-3 md:pt-3 md:pb-2 md:px-3">
-                          <div className="grid grid-cols-12 gap-x-2 gap-y-3 md:gap-y-1 items-start">
+                          {/* Desktop: 2 columns layout */}
+                          <div className="hidden md:grid md:grid-cols-2 md:gap-x-4 md:gap-y-1 items-start">
+                            {/* Col 1: Nama Produk + Pengerjaan */}
+                            <div className="space-y-1">
+                              <div className="space-y-0.5">
+                                <Label className={cn("text-[10px] font-medium", itemError?.product_name ? "text-destructive" : "text-muted-foreground")}>
+                                  Nama Produk
+                                </Label>
+                                <Input
+                                  value={item.product_name}
+                                  onChange={(e) => {
+                                    updateItem(index, "product_name", e.target.value);
+                                    if (itemError?.product_name) {
+                                      const newItemsErr = [...(errors.items || [])];
+                                      newItemsErr[index] = { ...newItemsErr[index], product_name: undefined };
+                                      setErrors({ ...errors, items: newItemsErr });
+                                    }
+                                  }}
+                                  placeholder="Kemeja, Celana, dll"
+                                  className={cn("h-8 text-sm", itemError?.product_name && "border-destructive focus-visible:ring-destructive")}
+                                />
+                                {itemError?.product_name && (
+                                  <p className="text-[9px] text-destructive font-bold uppercase tracking-tight">{itemError.product_name}</p>
+                                )}
+                              </div>
+                              <div className="space-y-0.5">
+                                <Label className="text-[10px] font-medium text-muted-foreground">Pengerjaan</Label>
+                                <div className="flex items-center gap-1">
+                                  <Badge variant={item.work_type === "wift" ? "default" : "outline"} className="cursor-pointer text-[10px] px-2 py-0" onClick={() => updateItem(index, "work_type", "wift")}>WIFT</Badge>
+                                  <Badge variant={item.work_type === "luar" ? "default" : "outline"} className="cursor-pointer text-[10px] px-2 py-0" onClick={() => updateItem(index, "work_type", "luar")}>Luar</Badge>
+                                </div>
+                              </div>
+                            </div>
 
-                            {/* 1. Nama Produk */}
-                            <div className="col-span-12 md:col-span-4 space-y-0.5">
-                              <Label className={cn("text-[10px] font-medium hidden md:block", itemError?.product_name ? "text-destructive" : "text-muted-foreground")}>
-                                Produk
-                              </Label>
-                              <Label className={cn("text-[10px] font-medium md:hidden", itemError?.product_name ? "text-destructive" : "text-muted-foreground")}>
-                                Nama Produk
-                              </Label>
+                            {/* Col 2: Qty + Harga + Subtotal */}
+                            <div className="space-y-1">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-0.5">
+                                  <Label className={cn("text-[10px] font-medium", itemError?.quantity ? "text-destructive" : "text-muted-foreground")}>Qty</Label>
+                                  <Input
+                                    type="number"
+                                    inputMode="numeric"
+                                    value={item.quantity}
+                                    onChange={(e) => {
+                                      updateItem(index, "quantity", e.target.value);
+                                      if (itemError?.quantity) {
+                                        const newItemsErr = [...(errors.items || [])];
+                                        newItemsErr[index] = { ...newItemsErr[index], quantity: undefined };
+                                        setErrors({ ...errors, items: newItemsErr });
+                                      }
+                                    }}
+                                    className={cn("h-8 text-sm", itemError?.quantity && "border-destructive focus-visible:ring-destructive")}
+                                  />
+                                </div>
+                                <div className="space-y-0.5">
+                                  <Label className={cn("text-[10px] font-medium", itemError?.price_per_unit ? "text-destructive" : "text-muted-foreground")}>Harga/Unit</Label>
+                                  <div className="relative">
+                                    <span className={cn("absolute left-2 top-1.5 text-[10px] font-medium", itemError?.price_per_unit ? "text-destructive" : "text-muted-foreground")}>Rp</span>
+                                    <Input
+                                      type="text"
+                                      inputMode="numeric"
+                                      className={cn("pl-6 h-8 text-sm", itemError?.price_per_unit && "border-destructive focus-visible:ring-destructive")}
+                                      value={formatRupiah(String(item.price_per_unit))}
+                                      onChange={(e) => {
+                                        const rawValue = e.target.value.replace(/\D/g, "");
+                                        updateItem(index, "price_per_unit", rawValue);
+                                        if (itemError?.price_per_unit) {
+                                          const newItemsErr = [...(errors.items || [])];
+                                          newItemsErr[index] = { ...newItemsErr[index], price_per_unit: undefined };
+                                          setErrors({ ...errors, items: newItemsErr });
+                                        }
+                                      }}
+                                      placeholder="0"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex justify-end items-baseline gap-1 pt-0.5">
+                                <span className="text-[9px] text-muted-foreground/70 font-medium">Subtotal:</span>
+                                <span className="text-[10px] font-medium text-muted-foreground">Rp</span>
+                                <span className="text-sm font-bold whitespace-nowrap">{calcSubtotal(item).toLocaleString("id-ID")}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Mobile: stacked layout */}
+                          <div className="md:hidden grid grid-cols-12 gap-x-2 gap-y-3 items-start">
+                            <div className="col-span-12 space-y-0.5">
+                              <Label className={cn("text-[10px] font-medium", itemError?.product_name ? "text-destructive" : "text-muted-foreground")}>Nama Produk</Label>
                               <Input
                                 value={item.product_name}
                                 onChange={(e) => {
@@ -813,84 +892,32 @@ const Orders = () => {
                                 placeholder="Kemeja, Celana, dll"
                                 className={cn("h-8 text-sm", itemError?.product_name && "border-destructive focus-visible:ring-destructive")}
                               />
-                              {itemError?.product_name && (
-                                <p className="text-[9px] text-destructive font-bold uppercase tracking-tight">{itemError.product_name}</p>
-                              )}
+                              {itemError?.product_name && <p className="text-[9px] text-destructive font-bold uppercase tracking-tight">{itemError.product_name}</p>}
                             </div>
-
-                            {/* 2. Pengerjaan */}
-                            <div className="col-span-6 md:col-span-2 space-y-0.5">
+                            <div className="col-span-6 space-y-0.5">
                               <Label className="text-[10px] font-medium text-muted-foreground">Pengerjaan</Label>
                               <div className="flex items-center gap-1 pt-0.5">
-                                <Badge variant={item.work_type === "wift" ? "default" : "outline"} className="cursor-pointer text-[10px] px-2 py-0" onClick={() => updateItem(index, "work_type", "wift")}>
-                                  WIFT
-                                </Badge>
-                                <Badge variant={item.work_type === "luar" ? "default" : "outline"} className="cursor-pointer text-[10px] px-2 py-0" onClick={() => updateItem(index, "work_type", "luar")}>
-                                  Luar
-                                </Badge>
+                                <Badge variant={item.work_type === "wift" ? "default" : "outline"} className="cursor-pointer text-[10px] px-2 py-0" onClick={() => updateItem(index, "work_type", "wift")}>WIFT</Badge>
+                                <Badge variant={item.work_type === "luar" ? "default" : "outline"} className="cursor-pointer text-[10px] px-2 py-0" onClick={() => updateItem(index, "work_type", "luar")}>Luar</Badge>
                               </div>
                             </div>
-
-                            {/* 3. Qty */}
-                            <div className="col-span-3 md:col-span-1 space-y-0.5">
-                              <Label className={cn("text-[10px] font-medium", itemError?.quantity ? "text-destructive" : "text-muted-foreground")}>
-                                Qty
-                              </Label>
-                              <Input
-                                type="number"
-                                inputMode="numeric"
-                                value={item.quantity}
-                                onChange={(e) => {
-                                  updateItem(index, "quantity", e.target.value);
-                                  if (itemError?.quantity) {
-                                    const newItemsErr = [...(errors.items || [])];
-                                    newItemsErr[index] = { ...newItemsErr[index], quantity: undefined };
-                                    setErrors({ ...errors, items: newItemsErr });
-                                  }
-                                }}
-                                className={cn("h-8 text-sm", itemError?.quantity && "border-destructive focus-visible:ring-destructive")}
-                              />
+                            <div className="col-span-3 space-y-0.5">
+                              <Label className={cn("text-[10px] font-medium", itemError?.quantity ? "text-destructive" : "text-muted-foreground")}>Qty</Label>
+                              <Input type="number" inputMode="numeric" value={item.quantity} onChange={(e) => { updateItem(index, "quantity", e.target.value); if (itemError?.quantity) { const newItemsErr = [...(errors.items || [])]; newItemsErr[index] = { ...newItemsErr[index], quantity: undefined }; setErrors({ ...errors, items: newItemsErr }); } }} className={cn("h-8 text-sm", itemError?.quantity && "border-destructive focus-visible:ring-destructive")} />
                             </div>
-
-                            {/* 4. Harga/Unit */}
-                            <div className="col-span-6 md:col-span-3 space-y-0.5">
-                              <Label className={cn("text-[10px] font-medium", itemError?.price_per_unit ? "text-destructive" : "text-muted-foreground")}>
-                                Harga/Unit
-                              </Label>
+                            <div className="col-span-6 space-y-0.5">
+                              <Label className={cn("text-[10px] font-medium", itemError?.price_per_unit ? "text-destructive" : "text-muted-foreground")}>Harga/Unit</Label>
                               <div className="relative">
-                                <span className={cn("absolute left-2 top-1.5 text-[10px] font-medium", itemError?.price_per_unit ? "text-destructive" : "text-muted-foreground")}>
-                                  Rp
-                                </span>
-                                <Input
-                                  type="text"
-                                  inputMode="numeric"
-                                  className={cn("pl-6 h-8 text-sm", itemError?.price_per_unit && "border-destructive focus-visible:ring-destructive")}
-                                  value={formatRupiah(String(item.price_per_unit))}
-                                  onChange={(e) => {
-                                    const rawValue = e.target.value.replace(/\D/g, "");
-                                    updateItem(index, "price_per_unit", rawValue);
-                                    if (itemError?.price_per_unit) {
-                                      const newItemsErr = [...(errors.items || [])];
-                                      newItemsErr[index] = { ...newItemsErr[index], price_per_unit: undefined };
-                                      setErrors({ ...errors, items: newItemsErr });
-                                    }
-                                  }}
-                                  placeholder="0"
-                                />
+                                <span className={cn("absolute left-2 top-1.5 text-[10px] font-medium", itemError?.price_per_unit ? "text-destructive" : "text-muted-foreground")}>Rp</span>
+                                <Input type="text" inputMode="numeric" className={cn("pl-6 h-8 text-sm", itemError?.price_per_unit && "border-destructive focus-visible:ring-destructive")} value={formatRupiah(String(item.price_per_unit))} onChange={(e) => { const rawValue = e.target.value.replace(/\D/g, ""); updateItem(index, "price_per_unit", rawValue); if (itemError?.price_per_unit) { const newItemsErr = [...(errors.items || [])]; newItemsErr[index] = { ...newItemsErr[index], price_per_unit: undefined }; setErrors({ ...errors, items: newItemsErr }); } }} placeholder="0" />
                               </div>
                             </div>
-
-                            {/* 5. Subtotal */}
-                            <div className="col-span-3 md:col-span-2 flex items-end justify-end md:pb-0.5">
+                            <div className="col-span-6 flex items-end justify-end">
                               <div className="flex items-baseline gap-1">
-                                <span className="text-[9px] text-muted-foreground/70 font-medium hidden md:inline">Sub:</span>
-                                <span className="text-[10px] mr-0.5 font-medium text-muted-foreground">Rp</span>
-                                <span className="text-sm font-bold whitespace-nowrap">
-                                  {calcSubtotal(item).toLocaleString("id-ID")}
-                                </span>
+                                <span className="text-[10px] font-medium text-muted-foreground">Rp</span>
+                                <span className="text-sm font-bold whitespace-nowrap">{calcSubtotal(item).toLocaleString("id-ID")}</span>
                               </div>
                             </div>
-
                           </div>
                         </CardContent>
                       </Card>
