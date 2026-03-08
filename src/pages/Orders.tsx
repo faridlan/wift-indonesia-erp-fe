@@ -1219,9 +1219,6 @@ const Orders = () => {
                   </div>
                 </div>
 
-                {selectedPOTab === "all" && o.po_period_id && (
-                  <Badge variant="secondary" className="text-xs">{getPOName(o.po_period_id)}</Badge>
-                )}
 
                 {(o as any).ppn_percentage > 0 && (
                   <Badge variant="secondary" className="text-xs">PPN {(o as any).ppn_percentage}%</Badge>
