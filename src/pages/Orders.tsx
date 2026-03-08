@@ -637,19 +637,41 @@ const Orders = () => {
                     </Badge>
                   </div>
                   {form.shipping_type === "non_cod" && (
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Biaya Ongkir</Label>
-                      <div className="relative">
-                        <span className="absolute left-2.5 top-2 text-[10px] font-medium text-muted-foreground">Rp</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Biaya Ongkir</Label>
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-2 text-[10px] font-medium text-muted-foreground">Rp</span>
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            className="pl-7 h-9"
+                            value={formatRupiah(form.shipping_cost)}
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(/\D/g, "");
+                              setForm({ ...form, shipping_cost: raw });
+                            }}
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Ekspedisi</Label>
+                        <Input
+                          className="h-9"
+                          value={form.expedition_name}
+                          onChange={(e) => setForm({ ...form, expedition_name: e.target.value })}
+                          placeholder="JNE, J&T, dll"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Berat (kg)</Label>
                         <Input
                           type="text"
-                          inputMode="numeric"
-                          className="pl-7 h-9"
-                          value={formatRupiah(form.shipping_cost)}
-                          onChange={(e) => {
-                            const raw = e.target.value.replace(/\D/g, "");
-                            setForm({ ...form, shipping_cost: raw });
-                          }}
+                          inputMode="decimal"
+                          className="h-9"
+                          value={form.weight_kg}
+                          onChange={(e) => setForm({ ...form, weight_kg: e.target.value.replace(/[^0-9.]/g, "") })}
                           placeholder="0"
                         />
                       </div>
