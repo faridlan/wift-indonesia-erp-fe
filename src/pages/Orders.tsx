@@ -381,6 +381,13 @@ const Orders = () => {
   const totalAmount = subtotalAmount + ppnAmount;
 
   const filteredOrders = orders.filter((o) => {
+    // PO filter
+    if (selectedPOTab === "active") {
+      if (activePO && o.po_period_id !== activePO.id) return false;
+      if (!activePO) return false; // no active PO, show nothing in active tab
+    } else if (selectedPOTab !== "all") {
+      if (o.po_period_id !== selectedPOTab) return false;
+    }
     if (statusFilter !== "all" && o.status !== statusFilter) return false;
     if (paymentStatusFilter !== "all" && o.payment_status !== paymentStatusFilter) return false;
     if (!search.trim()) return true;
@@ -405,62 +412,32 @@ const Orders = () => {
 
   const detailItems = detailOrder ? allOrderItems.filter((i) => i.order_id === detailOrder.id) : [];
 
+  const getPOName = (poId: string | null) => {
+    if (!poId) return "-";
+    const po = allPOPeriods.find(p => p.id === poId);
+    return po?.name ?? "-";
+  };
+
+  // Reset page when switching tabs
+  const handleTabChange = (val: string) => {
+    setSelectedPOTab(val);
+    setPage(1);
+  };
+
   return (
     <div>
-      {/* PO Period Status Banner */}
-      {activePO ? (
-        <div className="mt-4 md:mt-0 mb-4 rounded-lg border border-primary/30 bg-primary/5 p-3 flex items-center justify-between">
-          <div className="text-sm">
-            <span className="font-semibold text-foreground">PO Aktif:</span>{" "}
-            <span className="text-muted-foreground">{activePO.name} ({activePO.start_date} s/d {activePO.end_date})</span>
-          </div>
-          <Badge variant="default">Open</Badge>
-        </div>
-      ) : (
-        <div className="mt-4 md:mt-0mb-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-          ⚠️ Tidak ada PO period aktif. Sales tidak dapat membuat order baru.
-        </div>
-      )}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Orders</h1>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-          <Input
-            placeholder="Cari no. order, customer..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full sm:w-64"
-          />
-          <div className="flex gap-2">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Filter status" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
-              <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Filter bayar" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua</SelectItem>
-                <SelectItem value="unpaid">Unpaid</SelectItem>
-                <SelectItem value="partial">Partial</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Dialog
-            open={dialogOpen}
-            onOpenChange={(open) => {
-              setDialogOpen(open);
-              if (!open) setNewlyCreatedCustomer(null);
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button onClick={openCreate} disabled={!activePO}><Plus className="h-4 w-4 mr-2" />Tambah Order</Button>
-            </DialogTrigger>
+        <Dialog
+          open={dialogOpen}
+          onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) setNewlyCreatedCustomer(null);
+          }}
+        >
+          <DialogTrigger asChild>
+            <Button onClick={openCreate} disabled={!activePO}><Plus className="h-4 w-4 mr-2" />Tambah Order</Button>
+          </DialogTrigger>
             <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editing ? "Edit Order" : "Tambah Order Baru"}</DialogTitle>
