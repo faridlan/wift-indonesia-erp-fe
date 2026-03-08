@@ -98,7 +98,6 @@ const Products = () => {
       category_id: form.category_id || null,
       description: form.description || null,
       image_url: form.image_url || null,
-      size_chart_url: form.size_chart_url || null,
     };
     if (editingProduct) {
       await updateProduct.mutateAsync({ id: editingProduct.id, product: payload });
