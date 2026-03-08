@@ -258,5 +258,6 @@ export function generateKwitansiPDF({
     align: "center",
   });
 
-  doc.save(`Kwitansi-${order.order_number}-${payment.id.slice(0, 6)}.pdf`);
+  const custName = (customer?.name || "Unknown").replace(/\s+/g, "_");
+  doc.save(`Kwitansi-${custName}-${order.order_number}.pdf`);
 }

@@ -371,6 +371,7 @@ export function generateInvoicePDF({ order, items, customer, options, personalBa
   });
 
   // Save
-  const fileName = `Invoice-${order.order_number}.pdf`;
+  const custName = (customer?.name || "Unknown").replace(/\s+/g, "_");
+  const fileName = `Invoice-${custName}-${order.order_number}.pdf`;
   doc.save(fileName);
 }
