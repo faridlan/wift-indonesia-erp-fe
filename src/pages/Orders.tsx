@@ -1056,14 +1056,16 @@ const Orders = () => {
                 {activePO ? activePO.name : "PO Aktif"}
                 {activePO && <Badge variant="default" className="ml-2 text-[10px] px-1.5 py-0">Open</Badge>}
               </TabsTrigger>
-              {otherPOPeriods.map(po => (
+              {currentMonthPOPeriods.map(po => (
                 <TabsTrigger key={po.id} value={po.id} className="text-xs sm:text-sm">
                   {po.name}
                   <Badge variant={po.status === "open" ? "default" : "secondary"} className="ml-2 text-[10px] px-1.5 py-0">{po.status}</Badge>
                 </TabsTrigger>
               ))}
-              <TabsTrigger value="all" className="text-xs sm:text-sm">Semua Order</TabsTrigger>
             </TabsList>
+            <Link to="/dashboard/order-archive" className="text-xs text-primary hover:underline self-start ml-1">
+              📁 Lihat Arsip Order (Bulan & Tahun Sebelumnya)
+            </Link>
 
             {/* Filters row */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
