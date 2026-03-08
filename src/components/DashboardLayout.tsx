@@ -96,8 +96,8 @@ function AppSidebar() {
       <SidebarFooter className="p-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={() => { if (isMobile) setOpenMobile(false); signOut(); }} tooltip="Logout" className="text-lg md:text-sm py-3 md:py-0">
-              <LogOut className="h-6 w-6 md:h-4 md:w-4" />
+            <SidebarMenuButton onClick={() => { if (isMobile) setOpenMobile(false); signOut(); }} tooltip="Logout" className="text-xl md:text-sm py-4 md:py-0">
+              <LogOut className="h-7 w-7 md:h-4 md:w-4" />
               <span>Logout</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
