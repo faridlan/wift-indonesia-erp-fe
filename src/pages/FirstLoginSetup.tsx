@@ -80,19 +80,10 @@ const FirstLoginSetup = () => {
     if (!user) return;
     setLoading(true);
 
-    // Update auth email via edge function (bypasses @app.local validation issue)
-    const { error: authErr } = await supabase.functions.invoke("update-email", {
-      body: { email },
-    });
-    if (authErr) {
-      toast({ title: "Gagal update email", description: authErr.message, variant: "destructive" });
-      setLoading(false);
-      return;
-    }
-
-    // Update profile
+    // Store real email in profiles (don't change auth email to preserve login)
     const updates: Record<string, unknown> = {
       full_name: fullName,
+      email,
       password_changed: true,
     };
     if (imageUrl) updates.image_url = imageUrl;
