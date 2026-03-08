@@ -300,32 +300,70 @@ export type Database = {
         }
         Relationships: []
       }
+      product_images: {
+        Row: {
+          created_at: string | null
+          id: string
+          image_url: string
+          product_id: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          image_url: string
+          product_id: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          image_url?: string
+          product_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_images_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category_id: string | null
           created_at: string | null
+          description: string | null
           id: string
           image_url: string | null
           name: string
           price: number | null
+          size_chart_url: string | null
           slug: string
         }
         Insert: {
           category_id?: string | null
           created_at?: string | null
+          description?: string | null
           id?: string
           image_url?: string | null
           name: string
           price?: number | null
+          size_chart_url?: string | null
           slug: string
         }
         Update: {
           category_id?: string | null
           created_at?: string | null
+          description?: string | null
           id?: string
           image_url?: string | null
           name?: string
           price?: number | null
+          size_chart_url?: string | null
           slug?: string
         }
         Relationships: [
@@ -340,25 +378,40 @@ export type Database = {
       }
       profiles: {
         Row: {
+          bio: string | null
           created_at: string | null
           full_name: string | null
           id: string
+          image_url: string | null
           meta_pixel_id: string | null
+          phone_number: string | null
+          position: string | null
           role: string | null
+          slug: string | null
         }
         Insert: {
+          bio?: string | null
           created_at?: string | null
           full_name?: string | null
           id: string
+          image_url?: string | null
           meta_pixel_id?: string | null
+          phone_number?: string | null
+          position?: string | null
           role?: string | null
+          slug?: string | null
         }
         Update: {
+          bio?: string | null
           created_at?: string | null
           full_name?: string | null
           id?: string
+          image_url?: string | null
           meta_pixel_id?: string | null
+          phone_number?: string | null
+          position?: string | null
           role?: string | null
+          slug?: string | null
         }
         Relationships: []
       }
