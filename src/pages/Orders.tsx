@@ -411,7 +411,8 @@ const Orders = () => {
   const subtotalAmount = items.reduce((sum, item) => sum + calcSubtotal(item), 0);
   const ppnPct = form.ppn_enabled ? (parseInt(form.ppn_percentage) || 0) : 0;
   const ppnAmount = ppnPct > 0 ? Math.round(subtotalAmount * ppnPct / 100) : 0;
-  const totalAmount = subtotalAmount + ppnAmount;
+  const shippingCostAmount = form.shipping_type === "non_cod" ? (parseInt(form.shipping_cost) || 0) : 0;
+  const totalAmount = subtotalAmount + ppnAmount + shippingCostAmount;
 
   const filteredOrders = orders.filter((o) => {
     // PO filter
