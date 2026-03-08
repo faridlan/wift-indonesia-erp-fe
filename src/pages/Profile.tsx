@@ -14,7 +14,7 @@ import type { Tables } from "@/integrations/supabase/types";
 type ProfileType = Tables<"profiles">;
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState<ProfileType | null>(null);
@@ -30,6 +30,9 @@ const Profile = () => {
     slug: "",
     meta_pixel_id: "",
   });
+
+  const isSales = role === "sales";
+  const isSuperadmin = role === "superadmin";
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -55,14 +58,25 @@ const Profile = () => {
     e.preventDefault();
     if (!user) return;
     setSaving(true);
-    const { error } = await supabase.from("profiles").update({
+
+    const updates: Record<string, unknown> = {
       full_name: form.full_name || null,
       phone_number: form.phone_number || null,
-      position: form.position || null,
       bio: form.bio || null,
-      slug: form.slug || null,
-      meta_pixel_id: form.meta_pixel_id || null,
-    }).eq("id", user.id);
+    };
+
+    // Only sales can edit slug and meta_pixel_id
+    if (isSales) {
+      updates.slug = form.slug || null;
+      updates.meta_pixel_id = form.meta_pixel_id || null;
+    }
+
+    // Only superadmin can edit position
+    if (isSuperadmin) {
+      updates.position = form.position || null;
+    }
+
+    const { error } = await supabase.from("profiles").update(updates).eq("id", user.id);
     setSaving(false);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else toast({ title: "Berhasil", description: "Profil diperbarui." });
@@ -148,24 +162,38 @@ const Profile = () => {
                 <Input value={form.phone_number} onChange={(e) => setField("phone_number", e.target.value)} placeholder="08xxx" />
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Posisi / Jabatan</Label>
-                <Input value={form.position} onChange={(e) => setField("position", e.target.value)} placeholder="Sales Executive" />
-              </div>
-              <div className="space-y-2">
-                <Label>Slug (URL)</Label>
-                <Input value={form.slug} onChange={(e) => setField("slug", e.target.value)} placeholder="nama-saya" />
-              </div>
+
+            {/* Position - only superadmin can edit, others see disabled */}
+            <div className="space-y-2">
+              <Label>Posisi / Jabatan</Label>
+              <Input
+                value={form.position}
+                onChange={(e) => setField("position", e.target.value)}
+                placeholder="Sales Executive"
+                disabled={!isSuperadmin}
+              />
+              {!isSuperadmin && <p className="text-xs text-muted-foreground">Hanya superadmin yang dapat mengubah jabatan.</p>}
             </div>
+
             <div className="space-y-2">
               <Label>Bio</Label>
               <Textarea value={form.bio} onChange={(e) => setField("bio", e.target.value)} placeholder="Tentang saya..." rows={3} />
             </div>
-            <div className="space-y-2">
-              <Label>Meta Pixel ID</Label>
-              <Input value={form.meta_pixel_id} onChange={(e) => setField("meta_pixel_id", e.target.value)} placeholder="123456789" />
-            </div>
+
+            {/* Slug & Meta Pixel - only for sales */}
+            {isSales && (
+              <>
+                <div className="space-y-2">
+                  <Label>Slug (URL Landing Page)</Label>
+                  <Input value={form.slug} onChange={(e) => setField("slug", e.target.value)} placeholder="nama-saya" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Meta Pixel ID</Label>
+                  <Input value={form.meta_pixel_id} onChange={(e) => setField("meta_pixel_id", e.target.value)} placeholder="123456789" />
+                </div>
+              </>
+            )}
+
             <div className="space-y-2">
               <Label>Role</Label>
               <Input value={profile?.role || ""} disabled />

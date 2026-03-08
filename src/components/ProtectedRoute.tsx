@@ -1,8 +1,9 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { session, loading } = useAuth();
+  const { session, loading, needsSetup } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -13,6 +14,16 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!session) return <Navigate to="/login" replace />;
+
+  // Redirect to setup if first login, unless already on /setup
+  if (needsSetup && location.pathname !== "/setup") {
+    return <Navigate to="/setup" replace />;
+  }
+
+  // Prevent accessing /setup if already set up
+  if (!needsSetup && location.pathname === "/setup") {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return <>{children}</>;
 };
