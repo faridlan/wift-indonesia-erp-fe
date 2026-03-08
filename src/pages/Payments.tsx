@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, FileText } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { generateKwitansiPDF } from "@/lib/generate-kwitansi";
 import type { Tables } from "@/integrations/supabase/types";
 import { formatRupiah } from "@/lib/utils";
@@ -17,6 +17,8 @@ import { useAuth } from "@/contexts/AuthContext";
 type Payment = Tables<"payments">;
 type Order = Tables<"orders">;
 type Customer = Tables<"customers">;
+
+const ITEMS_PER_PAGE = 10;
 
 const Payments = () => {
   const { user, role } = useAuth();
@@ -30,6 +32,11 @@ const Payments = () => {
   const [editing, setEditing] = useState<Payment | null>(null);
   const [form, setForm] = useState({ order_id: "", amount: "", payment_method: "", notes: "" });
 
+  // Search, filter, pagination state
+  const [search, setSearch] = useState("");
+  const [filterMethod, setFilterMethod] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+
   const salesName = (id: string | null) => salesProfiles.find((s) => String(s.id) === String(id))?.full_name || "-";
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -40,7 +47,6 @@ const Payments = () => {
     if (!form.amount || parseInt(form.amount) <= 0) newErrors.amount = "Masukkan jumlah bayar yang valid";
     if (!form.payment_method) newErrors.payment_method = "Pilih metode pembayaran";
 
-    // Validasi jika bayar melebihi tagihan (opsional, tergantung kebijakan)
     if (selectedOrder && parseInt(form.amount) > selectedOrder.total_price) {
       newErrors.amount = "Jumlah bayar melebihi total tagihan";
     }
@@ -62,6 +68,44 @@ const Payments = () => {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  // Filtered & searched payments
+  const filteredPayments = useMemo(() => {
+    let result = payments;
+
+    // Filter by payment method
+    if (filterMethod !== "all") {
+      result = result.filter((p) => p.payment_method === filterMethod);
+    }
+
+    // Search by order number, customer name, or notes
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter((p) => {
+        const order = orders.find((o) => o.id === p.order_id);
+        const customer = customers.find((c) => c.id === order?.customer_id);
+        const orderNum = order?.order_number?.toString() || "";
+        const custName = customer?.name?.toLowerCase() || "";
+        const notes = p.notes?.toLowerCase() || "";
+        const amount = p.amount?.toString() || "";
+        return orderNum.includes(q) || custName.includes(q) || notes.includes(q) || amount.includes(q);
+      });
+    }
+
+    return result;
+  }, [payments, orders, customers, search, filterMethod]);
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filteredPayments.length / ITEMS_PER_PAGE));
+  const paginatedPayments = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredPayments.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredPayments, currentPage]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterMethod]);
 
   const openCreate = () => {
     setEditing(null);
@@ -115,7 +159,6 @@ const Payments = () => {
     else fetchData();
   };
 
-
   const handleDownloadKwitansi = (p: Payment) => {
     const order = orders.find((o) => o.id === p.order_id);
     if (!order) {
@@ -132,7 +175,7 @@ const Payments = () => {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Payments</h1>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -148,7 +191,6 @@ const Payments = () => {
             </DialogHeader>
 
             <form onSubmit={(e) => { e.preventDefault(); if (validate()) handleSubmit(e); }} className="space-y-4" noValidate>
-
               {/* Field Order */}
               <div className="space-y-2">
                 <Label className={errors.order_id ? "text-destructive" : ""}>Order</Label>
@@ -184,13 +226,7 @@ const Payments = () => {
                 <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm space-y-2 animate-in fade-in zoom-in duration-200">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground text-xs italic">Detail Tagihan:</span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-[10px] bg-background"
-                      onClick={handleFullPayment}
-                    >
+                    <Button type="button" variant="outline" size="sm" className="h-7 text-[10px] bg-background" onClick={handleFullPayment}>
                       Bayar Lunas
                     </Button>
                   </div>
@@ -261,6 +297,30 @@ const Payments = () => {
         </Dialog>
       </div>
 
+      {/* Search & Filter Bar */}
+      <div className="flex flex-col sm:flex-row gap-2 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Cari order, customer, catatan..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select value={filterMethod} onValueChange={setFilterMethod}>
+          <SelectTrigger className="w-full sm:w-[160px]">
+            <SelectValue placeholder="Metode" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Metode</SelectItem>
+            <SelectItem value="cash">Cash</SelectItem>
+            <SelectItem value="transfer">Transfer</SelectItem>
+            <SelectItem value="other">Lainnya</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       {loading ? <p className="text-muted-foreground">Loading...</p> : (
         <>
           {/* Desktop Table */}
@@ -279,7 +339,7 @@ const Payments = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {payments.map((p) => {
+                {paginatedPayments.map((p) => {
                   const order = orders.find((o) => o.id === p.order_id);
                   const customer = customers.find((c) => c.id === order?.customer_id);
                   return (
@@ -290,8 +350,8 @@ const Payments = () => {
                       )}
                       <TableCell className="font-medium">{customer?.name || "-"}</TableCell>
                       <TableCell>Rp {p.amount.toLocaleString("id-ID")}</TableCell>
-                      <TableCell>{p.payment_method || "-"}</TableCell>
-                      <TableCell>{p.notes || "-"}</TableCell>
+                      <TableCell className="capitalize">{p.payment_method || "-"}</TableCell>
+                      <TableCell className="max-w-[150px] truncate">{p.notes || "-"}</TableCell>
                       <TableCell>{p.created_at ? new Date(p.created_at).toLocaleDateString("id-ID") : "-"}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
@@ -303,8 +363,8 @@ const Payments = () => {
                     </TableRow>
                   );
                 })}
-                {payments.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Belum ada pembayaran.</TableCell></TableRow>
+                {paginatedPayments.length === 0 && (
+                  <TableRow><TableCell colSpan={role !== "sales" ? 8 : 7} className="text-center text-muted-foreground">Tidak ada pembayaran ditemukan.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -312,10 +372,10 @@ const Payments = () => {
 
           {/* Mobile Cards */}
           <div className="md:hidden space-y-3">
-            {payments.length === 0 && (
-              <p className="text-center text-muted-foreground py-8">Belum ada pembayaran.</p>
+            {paginatedPayments.length === 0 && (
+              <p className="text-center text-muted-foreground py-8">Tidak ada pembayaran ditemukan.</p>
             )}
-            {payments.map((p) => {
+            {paginatedPayments.map((p) => {
               const order = orders.find((o) => o.id === p.order_id);
               const customer = customers.find((c) => c.id === order?.customer_id);
               return (
@@ -358,6 +418,57 @@ const Payments = () => {
               );
             })}
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+              <p className="text-sm text-muted-foreground">
+                {filteredPayments.length} data · Hal {currentPage}/{totalPages}
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => p - 1)}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                  .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("...");
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, i) =>
+                    typeof p === "string" ? (
+                      <span key={`e-${i}`} className="px-1 text-muted-foreground text-sm">…</span>
+                    ) : (
+                      <Button
+                        key={p}
+                        variant={currentPage === p ? "default" : "outline"}
+                        size="icon"
+                        className="h-8 w-8 text-xs"
+                        onClick={() => setCurrentPage(p)}
+                      >
+                        {p}
+                      </Button>
+                    )
+                  )}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
