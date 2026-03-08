@@ -218,7 +218,7 @@ const Orders = () => {
       return;
     }
     setEditing(null);
-    setForm({ customer_id: "", status: "pending", ppn_enabled: true, ppn_percentage: "11", ppn_custom: false, salesId: "" });
+    setForm({ customer_id: "", status: "pending", ppn_enabled: false, ppn_percentage: "11", ppn_custom: false, salesId: "", shipping_type: "cod", shipping_cost: "" });
     setItems([emptyItem()]);
     setShowNewCustomer(false);
     setNewCustomerForm({ name: "", phone: "", address: "" });
