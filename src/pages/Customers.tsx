@@ -144,7 +144,7 @@ const Customers = () => {
       } else {
         await createCustomerMutation.mutateAsync({
           name: form.name,
-          phone: form.phone,
+          phone: normalizePhoneNumber(form.phone),
           address: form.address,
           salesId,
         });
