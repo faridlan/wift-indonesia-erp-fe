@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      categories: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null
@@ -42,6 +66,63 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "customers_sales_id_fkey"
+            columns: ["sales_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          created_at: string | null
+          device_info: string | null
+          fbc: string | null
+          fbp: string | null
+          id: string
+          metadata: Json | null
+          product_id: string | null
+          sales_id: string
+          time_spent_seconds: number | null
+          utm_campaign: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          device_info?: string | null
+          fbc?: string | null
+          fbp?: string | null
+          id?: string
+          metadata?: Json | null
+          product_id?: string | null
+          sales_id: string
+          time_spent_seconds?: number | null
+          utm_campaign?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          device_info?: string | null
+          fbc?: string | null
+          fbp?: string | null
+          id?: string
+          metadata?: Json | null
+          product_id?: string | null
+          sales_id?: string
+          time_spent_seconds?: number | null
+          utm_campaign?: string | null
+          utm_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_sales_id_fkey"
             columns: ["sales_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -219,23 +300,64 @@ export type Database = {
         }
         Relationships: []
       }
+      products: {
+        Row: {
+          category_id: string | null
+          created_at: string | null
+          id: string
+          image_url: string | null
+          name: string
+          price: number | null
+          slug: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          price?: number | null
+          slug: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          price?: number | null
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
           full_name: string | null
           id: string
+          meta_pixel_id: string | null
           role: string | null
         }
         Insert: {
           created_at?: string | null
           full_name?: string | null
           id: string
+          meta_pixel_id?: string | null
           role?: string | null
         }
         Update: {
           created_at?: string | null
           full_name?: string | null
           id?: string
+          meta_pixel_id?: string | null
           role?: string | null
         }
         Relationships: []
