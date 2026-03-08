@@ -1319,8 +1319,34 @@ const Orders = () => {
                     <TableCell className="text-center font-medium">{pcsPerOrder[o.id] || 0}</TableCell>
                     <TableCell><Badge variant={statusColor(o.status)} className="text-[10px] px-1.5">{shortStatus(o.status)}</Badge></TableCell>
                     <TableCell className="text-xs">{(o as any).ppn_percentage > 0 ? `${(o as any).ppn_percentage}%` : "-"}</TableCell>
-                    <TableCell className="text-right text-sm font-medium">{compactRupiah(o.total_price || 0)}</TableCell>
-                    <TableCell className="text-right text-sm">{compactRupiah(o.amount_paid || 0)}</TableCell>
+                    <TableCell className="text-right text-sm font-medium">
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dashed border-muted-foreground/40">{compactRupiah(o.total_price || 0)}</span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs space-y-0.5">
+                            <p>Subtotal Item: Rp {((o.total_price || 0) - (o.ppn_amount || 0) - (o.shipping_cost || 0)).toLocaleString("id-ID")}</p>
+                            {o.shipping_cost > 0 && <p>Ongkir: Rp {o.shipping_cost.toLocaleString("id-ID")}</p>}
+                            {(o as any).ppn_amount > 0 && <p>PPN ({(o as any).ppn_percentage}%): Rp {((o as any).ppn_amount || 0).toLocaleString("id-ID")}</p>}
+                            <p className="font-bold border-t border-border pt-0.5">Total: Rp {(o.total_price || 0).toLocaleString("id-ID")}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </TableCell>
+                    <TableCell className="text-right text-sm">
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dashed border-muted-foreground/40">{compactRupiah(o.amount_paid || 0)}</span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs space-y-0.5">
+                            <p>Dibayar: Rp {(o.amount_paid || 0).toLocaleString("id-ID")}</p>
+                            <p>Sisa: Rp {((o.total_price || 0) - (o.amount_paid || 0)).toLocaleString("id-ID")}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </TableCell>
                     <TableCell><Badge variant={o.payment_status === "paid" ? "default" : "outline"} className="text-[10px] px-1.5">{o.payment_status}</Badge></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
