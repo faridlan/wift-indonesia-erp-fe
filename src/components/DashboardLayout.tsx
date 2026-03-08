@@ -29,6 +29,8 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
 
   const adminItems = [
     { to: "/dashboard/po-periods", label: "PO Periods", icon: CalendarRange },
+    { to: "/dashboard/products", label: "Products", icon: Package },
+    { to: "/dashboard/categories", label: "Categories", icon: Tags },
   ];
   const superadminItems = [
     { to: "/dashboard/users", label: "Users", icon: UserCog },
