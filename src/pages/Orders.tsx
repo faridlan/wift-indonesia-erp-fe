@@ -35,7 +35,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, X, Eye, FileDown, Receipt, UserPlus, Loader2, AlertCircle, Package } from "lucide-react";
-import { generateInvoicePDF } from "@/lib/generate-invoice";
+import { generateInvoicePDF, type InvoiceOptions } from "@/lib/generate-invoice";
 import { generateNotaPDF } from "@/lib/generate-nota";
 import {
   useCreateOrder,
@@ -53,7 +53,7 @@ import type { OrderItem } from "@/services/order-items";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn, formatRupiah, compactRupiah, shortStatus, formatShortDate } from "@/lib/utils";
+import { cn, formatRupiah, compactRupiah, shortStatus, formatShortDate, normalizePhoneNumber } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -89,6 +89,9 @@ const Orders = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
   const [editing, setEditing] = useState<Order | null>(null);
+  const [invoiceOptionsOpen, setInvoiceOptionsOpen] = useState(false);
+  const [invoiceTargetOrder, setInvoiceTargetOrder] = useState<Order | null>(null);
+  const [invoiceOpts, setInvoiceOpts] = useState({ withStamp: true, withSignature: true });
   const [form, setForm] = useState({ customer_id: "", status: "pending", ppn_enabled: false, ppn_percentage: "11", ppn_custom: false, salesId: "", shipping_type: "cod", shipping_cost: "", expedition_name: "", weight_kg: "", dp_amount: "" });
   const [items, setItems] = useState<ItemForm[]>([emptyItem()]);
   const [submitting, setSubmitting] = useState(false);
@@ -263,11 +266,20 @@ const Orders = () => {
     setDetailDialogOpen(true);
   };
 
-  const handleDownloadInvoice = (o: Order) => {
+  const openInvoiceOptions = (o: Order) => {
+    setInvoiceTargetOrder(o);
+    setInvoiceOpts({ withStamp: true, withSignature: true });
+    setInvoiceOptionsOpen(true);
+  };
+
+  const handleDownloadInvoice = () => {
+    if (!invoiceTargetOrder) return;
+    const o = invoiceTargetOrder;
     const orderItems = allOrderItems.filter((i) => i.order_id === o.id);
     const customer = customers.find((c) => c.id === o.customer_id) || null;
-    generateInvoicePDF({ order: o, items: orderItems, customer });
+    generateInvoicePDF({ order: o, items: orderItems, customer, options: invoiceOpts });
     toast({ title: "Berhasil", description: `Invoice #${o.order_number} berhasil diunduh.` });
+    setInvoiceOptionsOpen(false);
   };
 
   const handleDownloadNota = (o: Order) => {
@@ -306,7 +318,7 @@ const Orders = () => {
     try {
       const newCust = await createCustomerMutation.mutateAsync({
         name: newCustomerForm.name,
-        phone: newCustomerForm.phone,
+        phone: normalizePhoneNumber(newCustomerForm.phone),
         address: newCustomerForm.address,
         salesId: isAdminOrSuperadmin ? form.salesId : user!.id,
       });
@@ -1047,7 +1059,7 @@ const Orders = () => {
                 <Button className="w-full" variant="default" onClick={() => { setDetailDialogOpen(false); setSelectedOrderForPayment(detailOrder); setPaymentAmount(String((detailOrder.total_price || 0) - (detailOrder.amount_paid || 0))); setPaymentDialogOpen(true); }}>
                   <Receipt className="h-4 w-4 mr-2" />Input Pembayaran
                 </Button>
-                <Button className="w-full" variant="outline" onClick={() => handleDownloadInvoice(detailOrder)}>
+                <Button className="w-full" variant="outline" onClick={() => openInvoiceOptions(detailOrder)}>
                   <FileDown className="h-4 w-4 mr-2" />Download Invoice PDF
                 </Button>
                 {detailOrder.payment_status === "paid" && (
@@ -1421,7 +1433,7 @@ const Orders = () => {
                   <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => openDetail(o)}>
                     <Eye className="h-3.5 w-3.5 mr-1" />Detail
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleDownloadInvoice(o)}>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => openInvoiceOptions(o)}>
                     <FileDown className="h-3.5 w-3.5 mr-1" />Invoice
                   </Button>
                   {o.payment_status === "paid" && (
@@ -1477,6 +1489,28 @@ const Orders = () => {
           )}
         </Tabs>
       )}
+
+      {/* Invoice Options Dialog */}
+      <Dialog open={invoiceOptionsOpen} onOpenChange={setInvoiceOptionsOpen}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Opsi Invoice</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="inv-stamp">Stempel</Label>
+              <Switch id="inv-stamp" checked={invoiceOpts.withStamp} onCheckedChange={(v) => setInvoiceOpts(p => ({ ...p, withStamp: v }))} />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="inv-sig">Tanda Tangan</Label>
+              <Switch id="inv-sig" checked={invoiceOpts.withSignature} onCheckedChange={(v) => setInvoiceOpts(p => ({ ...p, withSignature: v }))} />
+            </div>
+            <Button className="w-full" onClick={handleDownloadInvoice}>
+              <FileDown className="h-4 w-4 mr-2" />Download Invoice
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

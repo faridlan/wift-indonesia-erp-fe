@@ -7,10 +7,16 @@ type Order = Tables<"orders">;
 type OrderItem = Tables<"order_items">;
 type Customer = Tables<"customers">;
 
+export interface InvoiceOptions {
+  withStamp: boolean;
+  withSignature: boolean;
+}
+
 interface InvoiceData {
   order: Order;
   items: OrderItem[];
   customer: Customer | null;
+  options?: InvoiceOptions;
 }
 
 const COMPANY = {
@@ -35,7 +41,8 @@ const formatDate = (dateStr: string | null) => {
   });
 };
 
-export function generateInvoicePDF({ order, items, customer }: InvoiceData) {
+export function generateInvoicePDF({ order, items, customer, options }: InvoiceData) {
+  const { withStamp = true, withSignature = true } = options || {};
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -288,23 +295,27 @@ export function generateInvoicePDF({ order, items, customer }: InvoiceData) {
   });
 
   try {
-    doc.addImage(
-      "/assets/ttd-manager.png",
-      "PNG",
-      pageWidth - margin - 45,
-      sigY + 8,
-      40,
-      20,
-    );
+    if (withSignature) {
+      doc.addImage(
+        "/assets/ttd-manager.png",
+        "PNG",
+        pageWidth - margin - 45,
+        sigY + 8,
+        40,
+        20,
+      );
+    }
 
-    doc.addImage(
-      "/assets/stempel-wift.png",
-      "PNG",
-      pageWidth - margin - 55,
-      sigY + 5,
-      30,
-      30,
-    );
+    if (withStamp) {
+      doc.addImage(
+        "/assets/stempel-wift.png",
+        "PNG",
+        pageWidth - margin - 55,
+        sigY + 5,
+        30,
+        30,
+      );
+    }
   } catch (e) {
     console.error("Gagal memuat gambar tanda tangan/stempel", e);
   }

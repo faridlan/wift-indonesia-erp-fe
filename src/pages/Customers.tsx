@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { normalizePhoneNumber } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,7 +135,7 @@ const Customers = () => {
         await updateCustomerMutation.mutateAsync({
           id: editing.id,
           name: form.name,
-          phone: form.phone,
+          phone: normalizePhoneNumber(form.phone),
           address: form.address,
           // salesId biasanya tidak diupdate saat edit customer 
           // untuk menjaga integritas data histori
@@ -143,7 +144,7 @@ const Customers = () => {
       } else {
         await createCustomerMutation.mutateAsync({
           name: form.name,
-          phone: form.phone,
+          phone: normalizePhoneNumber(form.phone),
           address: form.address,
           salesId,
         });

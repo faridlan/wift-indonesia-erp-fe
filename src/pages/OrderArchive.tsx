@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/pagination";
 import { ArrowLeft, Calendar, Eye, FileDown, Receipt } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { useOrders, useOrderCustomers } from "@/hooks/api/useOrders";
@@ -48,6 +49,9 @@ const OrderArchive = () => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
+  const [invoiceOptionsOpen, setInvoiceOptionsOpen] = useState(false);
+  const [invoiceTargetOrder, setInvoiceTargetOrder] = useState<Order | null>(null);
+  const [invoiceOpts, setInvoiceOpts] = useState({ withStamp: true, withSignature: true });
   const pageSize = 15;
 
   const customerName = (id: string | null) => customers.find((c) => String(c.id) === String(id))?.name || "-";
@@ -158,11 +162,20 @@ const OrderArchive = () => {
 
   const detailItems = detailOrder ? allOrderItems.filter((i) => i.order_id === detailOrder.id) : [];
 
-  const handleDownloadInvoice = (o: Order) => {
+  const openInvoiceOptions = (o: Order) => {
+    setInvoiceTargetOrder(o);
+    setInvoiceOpts({ withStamp: true, withSignature: true });
+    setInvoiceOptionsOpen(true);
+  };
+
+  const handleDownloadInvoice = () => {
+    if (!invoiceTargetOrder) return;
+    const o = invoiceTargetOrder;
     const orderItems = allOrderItems.filter((i) => i.order_id === o.id);
     const customer = customers.find((c) => c.id === o.customer_id) || null;
-    generateInvoicePDF({ order: o, items: orderItems, customer });
+    generateInvoicePDF({ order: o, items: orderItems, customer, options: invoiceOpts });
     toast({ title: "Berhasil", description: `Invoice #${o.order_number} berhasil diunduh.` });
+    setInvoiceOptionsOpen(false);
   };
 
   const handleDownloadNota = (o: Order) => {
@@ -313,7 +326,7 @@ const OrderArchive = () => {
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" onClick={() => setDetailOrder(o)}><Eye className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDownloadInvoice(o)} title="Invoice"><FileDown className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => openInvoiceOptions(o)} title="Invoice"><FileDown className="h-4 w-4" /></Button>
                         {o.payment_status === "paid" && (
                           <Button variant="ghost" size="icon" onClick={() => handleDownloadNota(o)} title="Nota"><Receipt className="h-4 w-4" /></Button>
                         )}
@@ -365,7 +378,7 @@ const OrderArchive = () => {
                   <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setDetailOrder(o)}>
                     <Eye className="h-3.5 w-3.5 mr-1" />Detail
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleDownloadInvoice(o)}>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => openInvoiceOptions(o)}>
                     <FileDown className="h-3.5 w-3.5 mr-1" />Invoice
                   </Button>
                   {o.payment_status === "paid" && (
@@ -447,6 +460,28 @@ const OrderArchive = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Invoice Options Dialog */}
+      <Dialog open={invoiceOptionsOpen} onOpenChange={setInvoiceOptionsOpen}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Opsi Invoice</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>Stempel</Label>
+              <Switch checked={invoiceOpts.withStamp} onCheckedChange={(v) => setInvoiceOpts(p => ({ ...p, withStamp: v }))} />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label>Tanda Tangan</Label>
+              <Switch checked={invoiceOpts.withSignature} onCheckedChange={(v) => setInvoiceOpts(p => ({ ...p, withSignature: v }))} />
+            </div>
+            <Button className="w-full" onClick={handleDownloadInvoice}>
+              <FileDown className="h-4 w-4 mr-2" />Download Invoice
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
