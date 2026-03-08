@@ -1293,43 +1293,44 @@ const Orders = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>No.</TableHead>
+                  <TableHead className="w-14">No.</TableHead>
+                  <TableHead className="w-20">Tgl</TableHead>
                   {role !== "sales" && <TableHead>Sales</TableHead>}
                   <TableHead>Customer</TableHead>
-                  <TableHead className="text-center">Pcs</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>PPN</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Bayar</TableHead>
-                  <TableHead>Pembayaran</TableHead>
-                  <TableHead className="w-32">Aksi</TableHead>
+                  <TableHead className="text-center w-12">Pcs</TableHead>
+                  <TableHead className="w-16">Status</TableHead>
+                  <TableHead className="w-14">PPN</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead className="text-right">Bayar</TableHead>
+                  <TableHead className="w-16">Pay</TableHead>
+                  <TableHead className="w-24">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedOrders.map((o) => (
                   <TableRow key={o.id}>
                     <TableCell className="font-medium">{o.order_number}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{formatShortDate(o.created_at)}</TableCell>
                     {role !== "sales" && (
-                      <TableCell>{salesName(o.sales_id)}</TableCell>
+                      <TableCell className="text-sm">{salesName(o.sales_id)}</TableCell>
                     )}
-                    <TableCell>{customerName(o.customer_id)}</TableCell>
+                    <TableCell className="text-sm">{customerName(o.customer_id)}</TableCell>
                     <TableCell className="text-center font-medium">{pcsPerOrder[o.id] || 0}</TableCell>
-                    <TableCell><Badge variant={statusColor(o.status)}>{o.status}</Badge></TableCell>
-                    <TableCell>{(o as any).ppn_percentage > 0 ? <Badge variant="secondary">PPN {(o as any).ppn_percentage}%</Badge> : "-"}</TableCell>
-                    <TableCell>Rp {(o.total_price || 0).toLocaleString("id-ID")}</TableCell>
-                    <TableCell>Rp {(o.amount_paid || 0).toLocaleString("id-ID")}</TableCell>
-                    <TableCell><Badge variant={o.payment_status === "paid" ? "default" : "outline"}>{o.payment_status}</Badge></TableCell>
-                    
+                    <TableCell><Badge variant={statusColor(o.status)} className="text-[10px] px-1.5">{shortStatus(o.status)}</Badge></TableCell>
+                    <TableCell className="text-xs">{(o as any).ppn_percentage > 0 ? `${(o as any).ppn_percentage}%` : "-"}</TableCell>
+                    <TableCell className="text-right text-sm font-medium">{compactRupiah(o.total_price || 0)}</TableCell>
+                    <TableCell className="text-right text-sm">{compactRupiah(o.amount_paid || 0)}</TableCell>
+                    <TableCell><Badge variant={o.payment_status === "paid" ? "default" : "outline"} className="text-[10px] px-1.5">{o.payment_status}</Badge></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openDetail(o)} title="Detail"><Eye className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(o)} title="Edit"><Pencil className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openDetail(o)} title="Detail"><Eye className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(o)} title="Edit"><Pencil className="h-3.5 w-3.5" /></Button>
                       </div>
                     </TableCell>
                   </TableRow>
                 ))}
                 {filteredOrders.length === 0 && (
-                  <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">Belum ada order.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground">Belum ada order.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
