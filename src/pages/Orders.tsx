@@ -31,8 +31,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, X, Eye, FileDown, Receipt, UserPlus, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Eye, FileDown, Receipt, UserPlus, Loader2, AlertCircle, Package } from "lucide-react";
 import { generateInvoicePDF } from "@/lib/generate-invoice";
 import { generateNotaPDF } from "@/lib/generate-nota";
 import {
@@ -45,13 +46,13 @@ import {
 import { useOrderItems, useCreateOrderItem, useDeleteOrderItem, useUpdateOrderItem } from "@/hooks/api/useOrderItems";
 import { useCreateCustomer } from "@/hooks/api/useCustomers";
 import { useSalesProfiles } from "@/hooks/api/useProfile";
-import { useActivePOPeriod } from "@/hooks/api/usePOPeriods";
+import { useActivePOPeriod, usePOPeriods } from "@/hooks/api/usePOPeriods";
 import type { Order, Customer } from "@/services/orders";
 import type { OrderItem } from "@/services/order-items";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn, formatRupiah } from "@/lib/utils"; // Utilitas standar Shadcn
+import { cn, formatRupiah } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
 type ItemForm = {
