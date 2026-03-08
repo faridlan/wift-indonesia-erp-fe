@@ -29,7 +29,7 @@ const Products = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [search, setSearch] = useState("");
 
-  const [form, setForm] = useState({ name: "", slug: "", price: "", category_id: "", description: "", image_url: "", size_chart_url: "" });
+  const [form, setForm] = useState({ name: "", slug: "", price: "", category_id: "", description: "", image_url: "" });
   const mainImageRef = useRef<HTMLInputElement>(null);
   const sizeChartRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
