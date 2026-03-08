@@ -1059,7 +1059,7 @@ const Orders = () => {
                 <Button className="w-full" variant="default" onClick={() => { setDetailDialogOpen(false); setSelectedOrderForPayment(detailOrder); setPaymentAmount(String((detailOrder.total_price || 0) - (detailOrder.amount_paid || 0))); setPaymentDialogOpen(true); }}>
                   <Receipt className="h-4 w-4 mr-2" />Input Pembayaran
                 </Button>
-                <Button className="w-full" variant="outline" onClick={() => handleDownloadInvoice(detailOrder)}>
+                <Button className="w-full" variant="outline" onClick={() => openInvoiceOptions(detailOrder)}>
                   <FileDown className="h-4 w-4 mr-2" />Download Invoice PDF
                 </Button>
                 {detailOrder.payment_status === "paid" && (
