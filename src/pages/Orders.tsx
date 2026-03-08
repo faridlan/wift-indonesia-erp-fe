@@ -344,6 +344,8 @@ const Orders = () => {
           customerId: form.customer_id || undefined,
           status: form.status,
           ppnPercentage: ppnValue,
+          shippingType: form.shipping_type,
+          shippingCost: form.shipping_type === "non_cod" ? (parseInt(form.shipping_cost) || 0) : 0,
         });
 
         // ... logika delete & update items ...
