@@ -1,222 +1,146 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOrders, useOrderCustomers } from "@/hooks/api/useOrders";
-import { usePayments } from "@/hooks/api/usePayments";
 import { useSalesProfiles } from "@/hooks/api/useProfile";
-import { DollarSign, ShoppingCart, Users, TrendingUp } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { useMemo, useState } from "react";
-import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, startOfYear, endOfYear } from "date-fns";
-import { id as localeId } from "date-fns/locale";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useActivePOPeriod } from "@/hooks/api/usePOPeriods";
 import { useOrderItems } from "@/hooks/api/useOrderItems";
+import { DollarSign, ShoppingCart, Users, AlertCircle, Trophy, Crown, Medal, Award } from "lucide-react";
+import { useMemo } from "react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+
+const formatRp = (v: number) => `Rp ${v.toLocaleString("id-ID")}`;
 
 const Dashboard = () => {
   const { user, role } = useAuth();
   const { data: orders = [], isLoading: ordersLoading } = useOrders();
-  const { data: customers = [], isLoading: customersLoading } = useOrderCustomers();
-  const { data: payments = [], isLoading: paymentsLoading } = usePayments();
+  const { data: customers = [] } = useOrderCustomers();
   const { data: salesProfiles = [] } = useSalesProfiles(role);
   const { data: allOrderItems = [] } = useOrderItems();
+  const { data: activePO, isLoading: poLoading } = useActivePOPeriod();
 
-  const isAdminOrSuperadmin = role === "admin" || role === "superadmin";
+  const isAdmin = role === "admin" || role === "superadmin";
 
-  const isLoading = ordersLoading || customersLoading || paymentsLoading;
+  // Filter orders by active PO
+  const poOrders = useMemo(() => {
+    if (!activePO) return orders; // fallback to all if no active PO
+    return orders.filter((o) => o.po_period_id === activePO.id);
+  }, [orders, activePO]);
 
-  const totalRevenue = useMemo(() => {
-    return payments.reduce((sum, p) => sum + (p.amount || 0), 0);
-  }, [payments]);
+  // Filter customers that have orders in this PO
+  const poCustomerIds = useMemo(() => {
+    const ids = new Set<string>();
+    poOrders.forEach((o) => { if (o.customer_id) ids.add(o.customer_id); });
+    return ids;
+  }, [poOrders]);
 
-  const totalOrders = orders.length;
-  const totalCustomers = customers.length;
-  const completedOrders = orders.filter((o) => o.status === "completed").length;
+  const poCustomers = useMemo(() => customers.filter((c) => poCustomerIds.has(c.id)), [customers, poCustomerIds]);
 
-  // Monthly sales data for the last 6 months
-  const chartData = useMemo(() => {
-    const months = [];
-    for (let i = 5; i >= 0; i--) {
-      const date = subMonths(new Date(), i);
-      const start = startOfMonth(date);
-      const end = endOfMonth(date);
+  // Totals
+  const totalOmzet = useMemo(() => poOrders.reduce((s, o) => s + (o.total_price || 0), 0), [poOrders]);
+  const totalPaid = useMemo(() => poOrders.reduce((s, o) => s + (o.amount_paid || 0), 0), [poOrders]);
+  const sisaTagihan = totalOmzet - totalPaid;
 
-      const monthOrders = orders.filter((o) => {
-        if (!o.created_at) return false;
-        const orderDate = new Date(o.created_at);
-        return isWithinInterval(orderDate, { start, end });
-      });
+  // Ringkasan per sales
+  const salesSummary = useMemo(() => {
+    const orderIdSet = new Set(poOrders.map((o) => o.id));
+    const map: Record<string, {
+      name: string; pcs: number; orders: number; customers: Set<string>; omzet: number; sisaTagihan: number;
+    }> = {};
 
-      const monthRevenue = monthOrders.reduce((sum, o) => sum + (o.total_price || 0), 0);
+    const profiles = isAdmin ? salesProfiles : salesProfiles.filter((s) => s.id === user?.id);
 
-      months.push({
-        name: format(date, "MMM yy", { locale: localeId }),
-        pendapatan: monthRevenue,
-        orders: monthOrders.length,
-      });
-    }
-    return months;
-  }, [orders]);
-
-  // Per-sales summary (admin/superadmin only)
-  const perSalesSummary = useMemo(() => {
-    if (!isAdminOrSuperadmin) return [];
-    return salesProfiles.map((sales) => {
-      const salesOrders = orders.filter((o) => o.sales_id === sales.id);
-      const salesCustomers = customers.filter((c) => c.sales_id === sales.id);
-      const salesOrderIds = new Set(salesOrders.map((o) => o.id));
-      const salesRevenue = payments
-        .filter((p) => salesOrderIds.has(p.order_id))
-        .reduce((sum, p) => sum + (p.amount || 0), 0);
-      const pcs = allOrderItems
-        .filter((it) => salesOrderIds.has(it.order_id))
-        .reduce((sum, it) => sum + (it.quantity || 0), 0);
-      const completed = salesOrders.filter((o) => o.status === "completed").length;
-      return {
-        id: sales.id,
-        name: sales.full_name || sales.id,
-        orders: salesOrders.length,
-        customers: salesCustomers.length,
-        revenue: salesRevenue,
-        pcs,
-        completed,
-      };
+    profiles.forEach((s) => {
+      map[s.id] = { name: s.full_name || s.id, pcs: 0, orders: 0, customers: new Set(), omzet: 0, sisaTagihan: 0 };
     });
-  }, [isAdminOrSuperadmin, salesProfiles, orders, customers, payments]);
 
-  // Ranking per sales per month/year
-  const [rankingMode, setRankingMode] = useState<"month" | "year">("month");
-  const currentMonth = format(new Date(), "yyyy-MM");
-  const currentYear = format(new Date(), "yyyy");
-  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth);
-  const [selectedYear, setSelectedYear] = useState<string>(currentYear);
-
-  const monthOptions = useMemo(() => {
-    const months = new Set<string>();
-    orders.forEach((o) => {
-      if (!o.created_at) return;
-      const key = format(new Date(o.created_at), "yyyy-MM");
-      months.add(key);
+    poOrders.forEach((o) => {
+      if (!map[o.sales_id]) {
+        map[o.sales_id] = { name: o.sales_id, pcs: 0, orders: 0, customers: new Set(), omzet: 0, sisaTagihan: 0 };
+      }
+      const row = map[o.sales_id];
+      row.orders += 1;
+      if (o.customer_id) row.customers.add(o.customer_id);
+      row.omzet += o.total_price || 0;
+      row.sisaTagihan += (o.total_price || 0) - (o.amount_paid || 0);
     });
-    return Array.from(months).sort();
-  }, [orders]);
 
-  const yearOptions = useMemo(() => {
-    const years = new Set<string>();
-    orders.forEach((o) => {
-      if (!o.created_at) return;
-      const key = format(new Date(o.created_at), "yyyy");
-      years.add(key);
+    allOrderItems.forEach((it) => {
+      if (!it.order_id || !orderIdSet.has(it.order_id)) return;
+      const ord = poOrders.find((o) => o.id === it.order_id);
+      if (!ord) return;
+      if (map[ord.sales_id]) {
+        map[ord.sales_id].pcs += it.quantity || 0;
+      }
     });
-    return Array.from(years).sort();
-  }, [orders]);
 
+    return Object.entries(map).map(([id, v]) => ({
+      id,
+      name: v.name,
+      pcs: v.pcs,
+      orders: v.orders,
+      customers: v.customers.size,
+      omzet: v.omzet,
+      sisaTagihan: v.sisaTagihan,
+    }));
+  }, [poOrders, allOrderItems, salesProfiles, isAdmin, user?.id]);
+
+  // Ranking sorted by omzet
   const salesRanking = useMemo(() => {
-    if (!isAdminOrSuperadmin) return [];
+    return [...salesSummary].sort((a, b) => b.omzet - a.omzet);
+  }, [salesSummary]);
 
-    // determine period range
-    let start: Date | null = null;
-    let end: Date | null = null;
-    if (rankingMode === "month") {
-      try {
-        const [y, m] = selectedMonth.split("-").map(Number);
-        start = startOfMonth(new Date(y, m - 1, 1));
-        end = endOfMonth(new Date(y, m - 1, 1));
-      } catch {
-        start = null;
-        end = null;
-      }
-    } else {
-      try {
-        const y = Number(selectedYear);
-        start = startOfYear(new Date(y, 0, 1));
-        end = endOfYear(new Date(y, 0, 1));
-      } catch {
-        start = null;
-        end = null;
-      }
-    }
+  const isLoading = ordersLoading || poLoading;
 
-    const orderIdToSales = new Map<string, string | null>();
-    orders.forEach((o) => orderIdToSales.set(o.id, o.sales_id || null));
-
-    // filter order items by period
-    const itemsInPeriod = allOrderItems.filter((it) => {
-      const ord = orders.find((o) => o.id === it.order_id);
-      if (!ord || !ord.created_at) return false;
-      const d = new Date(ord.created_at);
-      if (!start || !end) return false;
-      return isWithinInterval(d, { start, end });
-    });
-
-    const perSalesMap: Record<string, { pcs: number; orders: Set<string>; revenue: number }> = {};
-    for (const it of itemsInPeriod) {
-      const salesId = orderIdToSales.get(it.order_id) || "unknown";
-      if (!perSalesMap[salesId]) perSalesMap[salesId] = { pcs: 0, orders: new Set(), revenue: 0 };
-      perSalesMap[salesId].pcs += it.quantity || 0;
-      perSalesMap[salesId].orders.add(it.order_id);
-    }
-
-    // revenue per sales in period
-    payments.forEach((p) => {
-      const ord = orders.find((o) => o.id === p.order_id);
-      if (!ord || !ord.created_at) return;
-      const d = new Date(ord.created_at);
-      if (!start || !end) return;
-      if (!isWithinInterval(d, { start, end })) return;
-      const salesId = ord.sales_id || "unknown";
-      if (!perSalesMap[salesId]) perSalesMap[salesId] = { pcs: 0, orders: new Set(), revenue: 0 };
-      perSalesMap[salesId].revenue += p.amount || 0;
-    });
-
-    const rows = Object.entries(perSalesMap).map(([salesId, v]) => {
-      const profile = salesProfiles.find((s) => s.id === salesId);
-      return {
-        id: salesId,
-        name: profile?.full_name || salesId,
-        pcs: v.pcs,
-        orders: v.orders.size,
-        revenue: v.revenue,
-      };
-    }).sort((a, b) => b.pcs - a.pcs);
-
-    return rows;
-  }, [isAdminOrSuperadmin, orders, allOrderItems, payments, salesProfiles, rankingMode, selectedMonth, selectedYear]);
+  const getRankIcon = (idx: number) => {
+    if (idx === 0) return <Crown className="h-4 w-4 text-yellow-500" />;
+    if (idx === 1) return <Medal className="h-4 w-4 text-gray-400" />;
+    if (idx === 2) return <Award className="h-4 w-4 text-amber-600" />;
+    return <span className="text-xs text-muted-foreground font-mono">#{idx + 1}</span>;
+  };
 
   const statCards = [
     {
-      title: "Total Pendapatan",
-      value: `Rp ${totalRevenue.toLocaleString("id-ID")}`,
+      title: "Sisa Tagihan",
+      value: formatRp(sisaTagihan),
+      icon: AlertCircle,
+      color: "text-destructive",
+    },
+    {
+      title: "Total Omzet",
+      value: formatRp(totalOmzet),
       icon: DollarSign,
-      description: isAdminOrSuperadmin ? "Dari semua pembayaran (semua sales)" : "Dari semua pembayaran",
+      color: "text-primary",
     },
     {
       title: "Total Order",
-      value: totalOrders,
+      value: poOrders.length,
       icon: ShoppingCart,
-      description: isAdminOrSuperadmin ? `${completedOrders} selesai (semua sales)` : `${completedOrders} selesai`,
+      color: "text-primary",
     },
     {
       title: "Total Customer",
-      value: totalCustomers,
+      value: poCustomers.length,
       icon: Users,
-      description: isAdminOrSuperadmin ? "Customer terdaftar (semua sales)" : "Customer terdaftar",
-    },
-    {
-      title: "Tingkat Selesai",
-      value: totalOrders > 0 ? `${Math.round((completedOrders / totalOrders) * 100)}%` : "0%",
-      icon: TrendingUp,
-      description: "Order selesai",
+      color: "text-primary",
     },
   ];
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground mb-1">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Selamat datang, {user?.email}
-          {isAdminOrSuperadmin && " (Admin)"}
-        </p>
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-1">Dashboard</h1>
+        {activePO ? (
+          <div className="flex items-center gap-2">
+            <Badge variant="default" className="text-xs">{activePO.status === "open" ? "PO Aktif" : activePO.status}</Badge>
+            <span className="text-sm text-muted-foreground">
+              {activePO.name} ({activePO.start_date} — {activePO.end_date})
+            </span>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Tidak ada PO aktif — menampilkan semua data</p>
+        )}
       </div>
 
       {isLoading ? (
@@ -224,119 +148,121 @@ const Dashboard = () => {
       ) : (
         <>
           {/* Stat Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             {statCards.map((stat) => (
               <Card key={stat.title}>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
-                  <stat.icon className="h-4 w-4 text-muted-foreground" />
+                <CardHeader className="flex flex-row items-center justify-between pb-1 md:pb-2">
+                  <CardTitle className="text-[11px] md:text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
+                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-foreground">{stat.value}</div>
-                  <p className="text-xs text-muted-foreground mt-1">{stat.description}</p>
+                  <div className="text-lg md:text-2xl font-bold text-foreground truncate">{stat.value}</div>
                 </CardContent>
               </Card>
             ))}
           </div>
 
-          {/* Per-sales summary (admin/superadmin only) */}
-          {isAdminOrSuperadmin && perSalesSummary.length > 0 && (
+          {/* Ringkasan per Sales */}
+          {isAdmin && salesSummary.length > 0 && (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Ringkasan per Sales</CardTitle>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base md:text-lg">Ringkasan per Sales</CardTitle>
               </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Sales</TableHead>
-                      <TableHead className="text-right">Order</TableHead>
-                      <TableHead className="text-right">Selesai</TableHead>
-                      <TableHead className="text-right">Customer</TableHead>
-                      <TableHead className="text-right">Pendapatan</TableHead>
-                      <TableHead className="text-right">PCS</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {perSalesSummary.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell className="font-medium">{row.name}</TableCell>
-                        <TableCell className="text-right">{row.orders}</TableCell>
-                        <TableCell className="text-right">{row.completed}</TableCell>
-                        <TableCell className="text-right">{row.customers}</TableCell>
-                        <TableCell className="text-right">Rp {row.revenue.toLocaleString("id-ID")}</TableCell>
-                        <TableCell className="text-right">{row.pcs}</TableCell>
+              <CardContent className="px-0 md:px-6">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-muted/30">
+                      <TableRow>
+                        <TableHead className="text-xs font-bold min-w-[100px]">Sales</TableHead>
+                        <TableHead className="text-right text-xs font-bold">PCS</TableHead>
+                        <TableHead className="text-right text-xs font-bold">Order</TableHead>
+                        <TableHead className="text-right text-xs font-bold">Customer</TableHead>
+                        <TableHead className="text-right text-xs font-bold min-w-[110px]">Omzet</TableHead>
+                        <TableHead className="text-right text-xs font-bold min-w-[110px]">Sisa Tagihan</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {salesSummary.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell className="font-medium text-xs">{row.name}</TableCell>
+                          <TableCell className="text-right text-xs font-mono">{row.pcs.toLocaleString("id-ID")}</TableCell>
+                          <TableCell className="text-right text-xs font-mono">{row.orders}</TableCell>
+                          <TableCell className="text-right text-xs font-mono">{row.customers}</TableCell>
+                          <TableCell className="text-right text-xs font-mono">{formatRp(row.omzet)}</TableCell>
+                          <TableCell className={`text-right text-xs font-mono ${row.sisaTagihan > 0 ? "text-destructive" : "text-green-600"}`}>
+                            {formatRp(row.sisaTagihan)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {/* Total row */}
+                      <TableRow className="bg-primary/5 font-bold border-t-2">
+                        <TableCell className="text-xs">TOTAL</TableCell>
+                        <TableCell className="text-right text-xs font-mono">{salesSummary.reduce((s, r) => s + r.pcs, 0).toLocaleString("id-ID")}</TableCell>
+                        <TableCell className="text-right text-xs font-mono">{salesSummary.reduce((s, r) => s + r.orders, 0)}</TableCell>
+                        <TableCell className="text-right text-xs font-mono">{poCustomers.length}</TableCell>
+                        <TableCell className="text-right text-xs font-mono">{formatRp(totalOmzet)}</TableCell>
+                        <TableCell className={`text-right text-xs font-mono ${sisaTagihan > 0 ? "text-destructive font-bold" : "text-green-600"}`}>
+                          {formatRp(sisaTagihan)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Sales ranking per month/year */}
-          {isAdminOrSuperadmin && (
+          {/* Sales ranking for non-admin (show own stats) */}
+          {!isAdmin && salesSummary.length > 0 && (
             <Card>
-              <CardHeader className="flex items-center justify-between">
-                <CardTitle className="text-lg">Peringkat Sales</CardTitle>
-                <div className="flex items-center gap-2">
-                  <div className="text-sm text-muted-foreground">Mode:</div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      className={`px-2 py-1 rounded ${rankingMode === "month" ? "bg-primary text-primary-foreground" : "bg-muted/10"}`}
-                      onClick={() => setRankingMode("month")}
-                    >
-                      Bulan
-                    </button>
-                    <button
-                      className={`px-2 py-1 rounded ${rankingMode === "year" ? "bg-primary text-primary-foreground" : "bg-muted/10"}`}
-                      onClick={() => setRankingMode("year")}
-                    >
-                      Tahun
-                    </button>
-                  </div>
-
-                  {rankingMode === "month" ? (
-                    <Select value={selectedMonth} onValueChange={(v) => setSelectedMonth(v)}>
-                      <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {monthOptions.map((m) => (
-                          <SelectItem key={m} value={m}>{format(new Date(m + "-01"), "MMM yyyy")}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Select value={selectedYear} onValueChange={(v) => setSelectedYear(v)}>
-                      <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {yearOptions.map((y) => (
-                          <SelectItem key={y} value={y}>{y}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base md:text-lg">Ringkasan Anda</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="overflow-auto">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {salesSummary.map((row) => (
+                    <div key={row.id} className="space-y-3">
+                      <div><span className="text-xs text-muted-foreground">PCS</span><p className="text-lg font-bold">{row.pcs.toLocaleString("id-ID")}</p></div>
+                      <div><span className="text-xs text-muted-foreground">Order</span><p className="text-lg font-bold">{row.orders}</p></div>
+                      <div><span className="text-xs text-muted-foreground">Customer</span><p className="text-lg font-bold">{row.customers}</p></div>
+                      <div><span className="text-xs text-muted-foreground">Omzet</span><p className="text-lg font-bold">{formatRp(row.omzet)}</p></div>
+                      <div><span className="text-xs text-muted-foreground">Sisa Tagihan</span><p className={`text-lg font-bold ${row.sisaTagihan > 0 ? "text-destructive" : "text-green-600"}`}>{formatRp(row.sisaTagihan)}</p></div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Peringkat Sales */}
+          {isAdmin && salesRanking.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-yellow-500" />
+                  <CardTitle className="text-base md:text-lg">Peringkat Sales</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="px-0 md:px-6">
+                <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader>
+                    <TableHeader className="bg-muted/30">
                       <TableRow>
-                        <TableHead>Rank</TableHead>
-                        <TableHead>Sales</TableHead>
-                        <TableHead className="text-right">PCS</TableHead>
-                        <TableHead className="text-right">Order</TableHead>
-                        <TableHead className="text-right">Pendapatan</TableHead>
+                        <TableHead className="text-xs font-bold w-[50px] text-center">Rank</TableHead>
+                        <TableHead className="text-xs font-bold min-w-[100px]">Sales</TableHead>
+                        <TableHead className="text-right text-xs font-bold">PCS</TableHead>
+                        <TableHead className="text-right text-xs font-bold">Order</TableHead>
+                        <TableHead className="text-right text-xs font-bold min-w-[110px]">Omzet</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {salesRanking.map((s, idx) => (
-                        <TableRow key={s.id}>
-                          <TableCell className="font-medium">#{idx + 1}</TableCell>
-                          <TableCell>{s.name}</TableCell>
-                          <TableCell className="text-right">{s.pcs}</TableCell>
-                          <TableCell className="text-right">{s.orders}</TableCell>
-                          <TableCell className="text-right">Rp {s.revenue.toLocaleString("id-ID")}</TableCell>
+                      {salesRanking.map((row, idx) => (
+                        <TableRow key={row.id} className={idx < 3 ? "bg-yellow-500/5" : ""}>
+                          <TableCell className="text-center">{getRankIcon(idx)}</TableCell>
+                          <TableCell className="font-medium text-xs">{row.name}</TableCell>
+                          <TableCell className="text-right text-xs font-mono">{row.pcs.toLocaleString("id-ID")}</TableCell>
+                          <TableCell className="text-right text-xs font-mono">{row.orders}</TableCell>
+                          <TableCell className="text-right text-xs font-mono font-medium">{formatRp(row.omzet)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -345,36 +271,6 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           )}
-
-          {/* Sales Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">
-                Tren Penjualan (6 Bulan Terakhir){isAdminOrSuperadmin ? " — Semua Sales" : ""}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="name" className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))" }} />
-                    <YAxis tick={{ fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "var(--radius)",
-                        color: "hsl(var(--foreground))",
-                      }}
-                      formatter={(value: number) => [`Rp ${value.toLocaleString("id-ID")}`, "Pendapatan"]}
-                    />
-                    <Bar dataKey="pendapatan" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
         </>
       )}
     </div>
