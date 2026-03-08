@@ -138,6 +138,7 @@ export type Database = {
           price_per_unit: number
           product_name: string
           quantity: number
+          work_type: string
         }
         Insert: {
           created_at?: string | null
@@ -146,6 +147,7 @@ export type Database = {
           price_per_unit: number
           product_name: string
           quantity?: number
+          work_type?: string
         }
         Update: {
           created_at?: string | null
@@ -154,6 +156,7 @@ export type Database = {
           price_per_unit?: number
           product_name?: string
           quantity?: number
+          work_type?: string
         }
         Relationships: [
           {
@@ -178,6 +181,8 @@ export type Database = {
           ppn_amount: number
           ppn_percentage: number
           sales_id: string
+          shipping_cost: number
+          shipping_type: string
           status: string | null
           total_price: number | null
         }
@@ -193,6 +198,8 @@ export type Database = {
           ppn_amount?: number
           ppn_percentage?: number
           sales_id: string
+          shipping_cost?: number
+          shipping_type?: string
           status?: string | null
           total_price?: number | null
         }
@@ -208,6 +215,8 @@ export type Database = {
           ppn_amount?: number
           ppn_percentage?: number
           sales_id?: string
+          shipping_cost?: number
+          shipping_type?: string
           status?: string | null
           total_price?: number | null
         }
