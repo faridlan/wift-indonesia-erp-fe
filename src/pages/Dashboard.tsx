@@ -166,7 +166,9 @@ const Dashboard = () => {
                   <stat.icon className={`h-4 w-4 ${stat.color}`} />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-lg md:text-2xl font-bold text-foreground truncate">{stat.value}</div>
+                  <div className="text-lg md:text-2xl font-bold text-foreground truncate" title={stat.fullValue || undefined}>
+                    {stat.value}
+                  </div>
                 </CardContent>
               </Card>
             ))}
