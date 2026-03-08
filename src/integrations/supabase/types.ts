@@ -173,6 +173,7 @@ export type Database = {
           amount_paid: number | null
           created_at: string | null
           customer_id: string | null
+          expedition_name: string | null
           id: string
           include_ppn: boolean
           order_number: number
@@ -185,11 +186,13 @@ export type Database = {
           shipping_type: string
           status: string | null
           total_price: number | null
+          weight_kg: number | null
         }
         Insert: {
           amount_paid?: number | null
           created_at?: string | null
           customer_id?: string | null
+          expedition_name?: string | null
           id?: string
           include_ppn?: boolean
           order_number?: number
@@ -202,11 +205,13 @@ export type Database = {
           shipping_type?: string
           status?: string | null
           total_price?: number | null
+          weight_kg?: number | null
         }
         Update: {
           amount_paid?: number | null
           created_at?: string | null
           customer_id?: string | null
+          expedition_name?: string | null
           id?: string
           include_ppn?: boolean
           order_number?: number
@@ -219,6 +224,7 @@ export type Database = {
           shipping_type?: string
           status?: string | null
           total_price?: number | null
+          weight_kg?: number | null
         }
         Relationships: [
           {
