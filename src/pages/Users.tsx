@@ -41,6 +41,12 @@ const Users = () => {
   const [editingPositionId, setEditingPositionId] = useState<string | null>(null);
   const [editPositionValue, setEditPositionValue] = useState("");
 
+  // Reset password state
+  const [resetTarget, setResetTarget] = useState<{ id: string; name: string } | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
   const getErrorMessage = (err: unknown) => {
     const message = err instanceof Error ? err.message : "Terjadi kesalahan.";
     const lower = message.toLowerCase();
