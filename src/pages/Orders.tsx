@@ -155,7 +155,7 @@ const Orders = () => {
     const newErrors: any = {};
 
     if (isAdminOrSuperadmin && !form.salesId) newErrors.salesId = "Wajib dipilih";
-    if (!form.customer_id && !showNewCustomer) newErrors.customer_id = "Pilih customer";
+    if (!form.customer_id) newErrors.customer_id = showNewCustomer ? "Simpan customer baru terlebih dahulu" : "Pilih customer";
 
     // Validasi Items (Array)
     const itemErrors = items.map(item => {
