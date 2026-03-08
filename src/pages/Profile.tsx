@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Camera } from "lucide-react";
+import { Loader2, Camera, Plus, Trash2, ExternalLink } from "lucide-react";
+import { useBankAccounts, useCreateBankAccount, useDeleteBankAccount } from "@/hooks/api/useBankAccounts";
 import type { Tables } from "@/integrations/supabase/types";
 
 type ProfileType = Tables<"profiles">;
