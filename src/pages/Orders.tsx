@@ -31,8 +31,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, X, Eye, FileDown, Receipt, UserPlus, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Eye, FileDown, Receipt, UserPlus, Loader2, AlertCircle, Package } from "lucide-react";
 import { generateInvoicePDF } from "@/lib/generate-invoice";
 import { generateNotaPDF } from "@/lib/generate-nota";
 import {
@@ -45,13 +46,13 @@ import {
 import { useOrderItems, useCreateOrderItem, useDeleteOrderItem, useUpdateOrderItem } from "@/hooks/api/useOrderItems";
 import { useCreateCustomer } from "@/hooks/api/useCustomers";
 import { useSalesProfiles } from "@/hooks/api/useProfile";
-import { useActivePOPeriod } from "@/hooks/api/usePOPeriods";
+import { useActivePOPeriod, usePOPeriods } from "@/hooks/api/usePOPeriods";
 import type { Order, Customer } from "@/services/orders";
 import type { OrderItem } from "@/services/order-items";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn, formatRupiah } from "@/lib/utils"; // Utilitas standar Shadcn
+import { cn, formatRupiah } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
 type ItemForm = {
@@ -71,6 +72,7 @@ const Orders = () => {
   const { data: salesProfiles = [] } = useSalesProfiles(role);
   const { data: allOrderItems = [] } = useOrderItems();
   const { data: activePO } = useActivePOPeriod();
+  const { data: allPOPeriods = [] } = usePOPeriods();
   const createOrderMutation = useCreateOrder();
   const updateOrderMutation = useUpdateOrder();
   const deleteOrderMutation = useDeleteOrder();
@@ -103,6 +105,30 @@ const Orders = () => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 10;
+  const [selectedPOTab, setSelectedPOTab] = useState<string>("active");
+
+  // PCS per order (sum of quantities from order_items)
+  const pcsPerOrder = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const item of allOrderItems) {
+      if (item.order_id) {
+        map[item.order_id] = (map[item.order_id] || 0) + item.quantity;
+      }
+    }
+    return map;
+  }, [allOrderItems]);
+
+  // Determine which PO to show based on tab
+  const selectedPOId = useMemo(() => {
+    if (selectedPOTab === "active") return activePO?.id ?? null;
+    if (selectedPOTab === "all") return null;
+    return selectedPOTab; // PO period id
+  }, [selectedPOTab, activePO]);
+
+  // Other PO periods (not the active one)
+  const otherPOPeriods = useMemo(() => {
+    return allPOPeriods.filter(p => p.id !== activePO?.id);
+  }, [allPOPeriods, activePO]);
 
   // Payment 
 
@@ -355,6 +381,13 @@ const Orders = () => {
   const totalAmount = subtotalAmount + ppnAmount;
 
   const filteredOrders = orders.filter((o) => {
+    // PO filter
+    if (selectedPOTab === "active") {
+      if (activePO && o.po_period_id !== activePO.id) return false;
+      if (!activePO) return false; // no active PO, show nothing in active tab
+    } else if (selectedPOTab !== "all") {
+      if (o.po_period_id !== selectedPOTab) return false;
+    }
     if (statusFilter !== "all" && o.status !== statusFilter) return false;
     if (paymentStatusFilter !== "all" && o.payment_status !== paymentStatusFilter) return false;
     if (!search.trim()) return true;
@@ -379,62 +412,32 @@ const Orders = () => {
 
   const detailItems = detailOrder ? allOrderItems.filter((i) => i.order_id === detailOrder.id) : [];
 
+  const getPOName = (poId: string | null) => {
+    if (!poId) return "-";
+    const po = allPOPeriods.find(p => p.id === poId);
+    return po?.name ?? "-";
+  };
+
+  // Reset page when switching tabs
+  const handleTabChange = (val: string) => {
+    setSelectedPOTab(val);
+    setPage(1);
+  };
+
   return (
     <div>
-      {/* PO Period Status Banner */}
-      {activePO ? (
-        <div className="mt-4 md:mt-0 mb-4 rounded-lg border border-primary/30 bg-primary/5 p-3 flex items-center justify-between">
-          <div className="text-sm">
-            <span className="font-semibold text-foreground">PO Aktif:</span>{" "}
-            <span className="text-muted-foreground">{activePO.name} ({activePO.start_date} s/d {activePO.end_date})</span>
-          </div>
-          <Badge variant="default">Open</Badge>
-        </div>
-      ) : (
-        <div className="mt-4 md:mt-0mb-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-          ⚠️ Tidak ada PO period aktif. Sales tidak dapat membuat order baru.
-        </div>
-      )}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Orders</h1>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-          <Input
-            placeholder="Cari no. order, customer..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full sm:w-64"
-          />
-          <div className="flex gap-2">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Filter status" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
-              <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Filter bayar" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua</SelectItem>
-                <SelectItem value="unpaid">Unpaid</SelectItem>
-                <SelectItem value="partial">Partial</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Dialog
-            open={dialogOpen}
-            onOpenChange={(open) => {
-              setDialogOpen(open);
-              if (!open) setNewlyCreatedCustomer(null);
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button onClick={openCreate} disabled={!activePO}><Plus className="h-4 w-4 mr-2" />Tambah Order</Button>
-            </DialogTrigger>
+        <Dialog
+          open={dialogOpen}
+          onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) setNewlyCreatedCustomer(null);
+          }}
+        >
+          <DialogTrigger asChild>
+            <Button onClick={openCreate} disabled={!activePO}><Plus className="h-4 w-4 mr-2" />Tambah Order</Button>
+          </DialogTrigger>
             <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editing ? "Edit Order" : "Tambah Order Baru"}</DialogTitle>
@@ -827,7 +830,6 @@ const Orders = () => {
               </form>
             </DialogContent>
           </Dialog>
-        </div>
       </div>
 
       {/* Detail Dialog */}
@@ -1038,7 +1040,71 @@ const Orders = () => {
       )}
 
       {!isLoading && !customersLoading && !isError && !customersError && (
-        <>
+        <Tabs value={selectedPOTab} onValueChange={handleTabChange} className="w-full">
+          <div className="flex flex-col gap-3 mb-4">
+            <TabsList className="w-full justify-start overflow-x-auto flex-wrap h-auto gap-1 p-1">
+              <TabsTrigger value="active" className="text-xs sm:text-sm">
+                <Package className="h-3.5 w-3.5 mr-1.5" />
+                {activePO ? activePO.name : "PO Aktif"}
+                {activePO && <Badge variant="default" className="ml-2 text-[10px] px-1.5 py-0">Open</Badge>}
+              </TabsTrigger>
+              {otherPOPeriods.map(po => (
+                <TabsTrigger key={po.id} value={po.id} className="text-xs sm:text-sm">
+                  {po.name}
+                  <Badge variant={po.status === "open" ? "default" : "secondary"} className="ml-2 text-[10px] px-1.5 py-0">{po.status}</Badge>
+                </TabsTrigger>
+              ))}
+              <TabsTrigger value="all" className="text-xs sm:text-sm">Semua Order</TabsTrigger>
+            </TabsList>
+
+            {/* Filters row */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <Input
+                placeholder="Cari no. order, customer..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                className="w-full sm:w-64"
+              />
+              <div className="flex gap-2">
+                <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+                  <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Filter status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua status</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="processing">Processing</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={paymentStatusFilter} onValueChange={(v) => { setPaymentStatusFilter(v); setPage(1); }}>
+                  <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Filter bayar" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua</SelectItem>
+                    <SelectItem value="unpaid">Unpaid</SelectItem>
+                    <SelectItem value="partial">Partial</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* PO info banner for active tab */}
+          {selectedPOTab === "active" && (
+            activePO ? (
+              <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-3 flex items-center justify-between">
+                <div className="text-sm">
+                  <span className="font-semibold text-foreground">PO Aktif:</span>{" "}
+                  <span className="text-muted-foreground">{activePO.name} ({activePO.start_date} s/d {activePO.end_date})</span>
+                </div>
+                <Badge variant="default">Open</Badge>
+              </div>
+            ) : (
+              <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                ⚠️ Tidak ada PO period aktif. Sales tidak dapat membuat order baru.
+              </div>
+            )
+          )}
+
           <p className="text-sm text-muted-foreground mb-2">
             Menampilkan {paginatedOrders.length} dari {filteredOrders.length} order.
           </p>
@@ -1051,11 +1117,13 @@ const Orders = () => {
                   <TableHead>No.</TableHead>
                   {role !== "sales" && <TableHead>Sales</TableHead>}
                   <TableHead>Customer</TableHead>
+                  <TableHead className="text-center">Pcs</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>PPN</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Bayar</TableHead>
                   <TableHead>Pembayaran</TableHead>
+                  {selectedPOTab === "all" && <TableHead>PO</TableHead>}
                   <TableHead className="w-32">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1067,18 +1135,20 @@ const Orders = () => {
                       <TableCell>{salesName(o.sales_id)}</TableCell>
                     )}
                     <TableCell>{customerName(o.customer_id)}</TableCell>
+                    <TableCell className="text-center font-medium">{pcsPerOrder[o.id] || 0}</TableCell>
                     <TableCell><Badge variant={statusColor(o.status)}>{o.status}</Badge></TableCell>
                     <TableCell>{(o as any).ppn_percentage > 0 ? <Badge variant="secondary">PPN {(o as any).ppn_percentage}%</Badge> : "-"}</TableCell>
                     <TableCell>Rp {(o.total_price || 0).toLocaleString("id-ID")}</TableCell>
                     <TableCell>Rp {(o.amount_paid || 0).toLocaleString("id-ID")}</TableCell>
                     <TableCell><Badge variant={o.payment_status === "paid" ? "default" : "outline"}>{o.payment_status}</Badge></TableCell>
+                    {selectedPOTab === "all" && <TableCell className="text-xs text-muted-foreground">{getPOName(o.po_period_id)}</TableCell>}
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="text-emerald-600 hover:text-emerald-700" onClick={() => { setSelectedOrderForPayment(o); setPaymentAmount(String((o.total_price || 0) - (o.amount_paid || 0))); setPaymentDialogOpen(true); }} title="Input Pembayaran"><Receipt className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="text-primary hover:text-primary/80" onClick={() => { setSelectedOrderForPayment(o); setPaymentAmount(String((o.total_price || 0) - (o.amount_paid || 0))); setPaymentDialogOpen(true); }} title="Input Pembayaran"><Receipt className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" onClick={() => openDetail(o)}><Eye className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" onClick={() => handleDownloadInvoice(o)} title="Download Invoice"><FileDown className="h-4 w-4" /></Button>
                         {o.payment_status === "paid" && (
-                          <Button variant="ghost" size="icon" onClick={() => handleDownloadNota(o)} title="Download Nota"><Receipt className="h-4 w-4 text-green-600" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDownloadNota(o)} title="Download Nota"><Receipt className="h-4 w-4" /></Button>
                         )}
                         <Button variant="ghost" size="icon" onClick={() => openEdit(o)}><Pencil className="h-4 w-4" /></Button>
                         <AlertDialog>
@@ -1101,7 +1171,7 @@ const Orders = () => {
                   </TableRow>
                 ))}
                 {filteredOrders.length === 0 && (
-                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">Belum ada order.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={selectedPOTab === "all" ? 11 : 10} className="text-center text-muted-foreground">Belum ada order.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -1126,7 +1196,11 @@ const Orders = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-sm border-t pt-2">
+                <div className="grid grid-cols-3 gap-2 text-sm border-t pt-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Pcs</p>
+                    <p className="font-medium">{pcsPerOrder[o.id] || 0}</p>
+                  </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Total</p>
                     <p className="font-medium">Rp {(o.total_price || 0).toLocaleString("id-ID")}</p>
@@ -1137,12 +1211,16 @@ const Orders = () => {
                   </div>
                 </div>
 
+                {selectedPOTab === "all" && o.po_period_id && (
+                  <Badge variant="secondary" className="text-xs">{getPOName(o.po_period_id)}</Badge>
+                )}
+
                 {(o as any).ppn_percentage > 0 && (
                   <Badge variant="secondary" className="text-xs">PPN {(o as any).ppn_percentage}%</Badge>
                 )}
 
                 <div className="flex flex-wrap gap-1 border-t pt-2">
-                  <Button variant="ghost" size="sm" className="h-8 text-xs text-emerald-600" onClick={() => { setSelectedOrderForPayment(o); setPaymentAmount(String((o.total_price || 0) - (o.amount_paid || 0))); setPaymentDialogOpen(true); }}>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs text-primary" onClick={() => { setSelectedOrderForPayment(o); setPaymentAmount(String((o.total_price || 0) - (o.amount_paid || 0))); setPaymentDialogOpen(true); }}>
                     <Receipt className="h-3.5 w-3.5 mr-1" />Bayar
                   </Button>
                   <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => openDetail(o)}>
@@ -1202,7 +1280,7 @@ const Orders = () => {
               </Pagination>
             </div>
           )}
-        </>
+        </Tabs>
       )}
     </div>
   );
