@@ -326,7 +326,7 @@ const OrderArchive = () => {
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" onClick={() => setDetailOrder(o)}><Eye className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDownloadInvoice(o)} title="Invoice"><FileDown className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => openInvoiceOptions(o)} title="Invoice"><FileDown className="h-4 w-4" /></Button>
                         {o.payment_status === "paid" && (
                           <Button variant="ghost" size="icon" onClick={() => handleDownloadNota(o)} title="Nota"><Receipt className="h-4 w-4" /></Button>
                         )}
