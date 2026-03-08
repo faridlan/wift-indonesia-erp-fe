@@ -218,7 +218,7 @@ const Orders = () => {
       return;
     }
     setEditing(null);
-    setForm({ customer_id: "", status: "pending", ppn_enabled: false, ppn_percentage: "11", ppn_custom: false, salesId: "", shipping_type: "cod", shipping_cost: "" });
+    setForm({ customer_id: "", status: "pending", ppn_enabled: false, ppn_percentage: "11", ppn_custom: false, salesId: "", shipping_type: "cod", shipping_cost: "", expedition_name: "", weight_kg: "", dp_amount: "" });
     setItems([emptyItem()]);
     setShowNewCustomer(false);
     setNewCustomerForm({ name: "", phone: "", address: "" });
