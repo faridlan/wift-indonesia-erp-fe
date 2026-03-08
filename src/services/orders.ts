@@ -57,6 +57,8 @@ export async function createOrder(payload: OrderPayload): Promise<Order> {
     po_period_id: payload.poPeriodId || null,
     shipping_type: payload.shippingType ?? 'cod',
     shipping_cost: payload.shippingCost ?? 0,
+    expedition_name: payload.expeditionName || null,
+    weight_kg: payload.weightKg || null,
   } as any).select().single();
 
   if (error) {
