@@ -177,7 +177,8 @@ const Profile = () => {
 
             <div className="space-y-2">
               <Label>Bio</Label>
-              <Textarea value={form.bio} onChange={(e) => setField("bio", e.target.value)} placeholder="Tentang saya..." rows={3} />
+              <Textarea value={form.bio} onChange={(e) => setField("bio", e.target.value.slice(0, 120))} placeholder="Tentang saya..." rows={3} maxLength={120} />
+              <p className="text-xs text-muted-foreground text-right">{form.bio.length}/120</p>
             </div>
 
             {/* Slug & Meta Pixel - only for sales */}
