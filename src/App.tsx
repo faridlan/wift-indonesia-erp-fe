@@ -18,6 +18,9 @@ import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 import POPeriods from "./pages/POPeriods";
 import Reports from "./pages/Reports";
+import Products from "./pages/Products";
+import Categories from "./pages/Categories";
+import Leads from "./pages/Leads";
 import AdminRoute from "@/components/AdminRoute";
 
 const queryClient = new QueryClient();
@@ -38,6 +41,9 @@ const App = () => (
             <Route path="/dashboard/po-periods" element={<ProtectedRoute><AdminRoute><DashboardLayout><POPeriods /></DashboardLayout></AdminRoute></ProtectedRoute>} />
             <Route path="/dashboard/payments" element={<ProtectedRoute><DashboardLayout><Payments /></DashboardLayout></ProtectedRoute>} />
             <Route path="/dashboard/reports" element={<ProtectedRoute><DashboardLayout><Reports /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/dashboard/products" element={<ProtectedRoute><AdminRoute><DashboardLayout><Products /></DashboardLayout></AdminRoute></ProtectedRoute>} />
+            <Route path="/dashboard/categories" element={<ProtectedRoute><AdminRoute><DashboardLayout><Categories /></DashboardLayout></AdminRoute></ProtectedRoute>} />
+            <Route path="/dashboard/leads" element={<ProtectedRoute><DashboardLayout><Leads /></DashboardLayout></ProtectedRoute>} />
             <Route path="/dashboard/profile" element={<ProtectedRoute><DashboardLayout><Profile /></DashboardLayout></ProtectedRoute>} />
             <Route path="/dashboard/users" element={<ProtectedRoute><SuperadminRoute><DashboardLayout><Users /></DashboardLayout></SuperadminRoute></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

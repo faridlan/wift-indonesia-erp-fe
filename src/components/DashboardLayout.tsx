@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Users, ShoppingCart, Package, CreditCard, User, LogOut, Home, UserCog, CalendarRange, BarChart, Menu } from "lucide-react";
+import { Users, ShoppingCart, Package, CreditCard, User, LogOut, Home, UserCog, CalendarRange, BarChart, Menu, Tags, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Drawer,
@@ -18,6 +18,7 @@ const baseNavItems = [
   { to: "/dashboard/customers", label: "Customers", icon: Users },
   { to: "/dashboard/orders", label: "Orders", icon: ShoppingCart },
   { to: "/dashboard/payments", label: "Payments", icon: CreditCard },
+  { to: "/dashboard/leads", label: "Leads", icon: Target },
   { to: "/dashboard/reports", label: "Reports", icon: BarChart },
   { to: "/dashboard/profile", label: "Profile", icon: User },
 ];
@@ -28,6 +29,8 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
 
   const adminItems = [
     { to: "/dashboard/po-periods", label: "PO Periods", icon: CalendarRange },
+    { to: "/dashboard/products", label: "Products", icon: Package },
+    { to: "/dashboard/categories", label: "Categories", icon: Tags },
   ];
   const superadminItems = [
     { to: "/dashboard/users", label: "Users", icon: UserCog },
