@@ -108,25 +108,29 @@ const Dashboard = () => {
   const statCards = [
     {
       title: "Sisa Tagihan",
-      value: formatRp(sisaTagihan),
+      value: formatRpCompact(sisaTagihan),
+      fullValue: formatRp(sisaTagihan),
       icon: AlertCircle,
       color: "text-destructive",
     },
     {
       title: "Total Omzet",
-      value: formatRp(totalOmzet),
+      value: formatRpCompact(totalOmzet),
+      fullValue: formatRp(totalOmzet),
       icon: DollarSign,
       color: "text-primary",
     },
     {
       title: "Total Order",
       value: poOrders.length,
+      fullValue: null,
       icon: ShoppingCart,
       color: "text-primary",
     },
     {
       title: "Total Customer",
       value: poCustomers.length,
+      fullValue: null,
       icon: Users,
       color: "text-primary",
     },
