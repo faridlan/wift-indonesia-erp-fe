@@ -6,11 +6,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAllProfiles, useUpdateProfileRole, useUpdateProfilePosition } from "@/hooks/api/useProfile";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, UserPlus, Eye, EyeOff, Pencil, Check, X } from "lucide-react";
+import { Loader2, UserPlus, Eye, EyeOff, Pencil, Check, X, KeyRound } from "lucide-react";
 import { createUser } from "@/services/invite-user";
 import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const ROLES = [
   { value: "sales", label: "Sales" },
