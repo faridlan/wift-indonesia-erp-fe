@@ -7,10 +7,16 @@ type Order = Tables<"orders">;
 type OrderItem = Tables<"order_items">;
 type Customer = Tables<"customers">;
 
+export interface InvoiceOptions {
+  withStamp: boolean;
+  withSignature: boolean;
+}
+
 interface InvoiceData {
   order: Order;
   items: OrderItem[];
   customer: Customer | null;
+  options?: InvoiceOptions;
 }
 
 const COMPANY = {
