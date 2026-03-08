@@ -88,7 +88,7 @@ const Orders = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
   const [editing, setEditing] = useState<Order | null>(null);
-  const [form, setForm] = useState({ customer_id: "", status: "pending", ppn_enabled: false, ppn_percentage: "11", ppn_custom: false, salesId: "", shipping_type: "cod", shipping_cost: "" });
+  const [form, setForm] = useState({ customer_id: "", status: "pending", ppn_enabled: false, ppn_percentage: "11", ppn_custom: false, salesId: "", shipping_type: "cod", shipping_cost: "", expedition_name: "", weight_kg: "", dp_amount: "" });
   const [items, setItems] = useState<ItemForm[]>([emptyItem()]);
   const [submitting, setSubmitting] = useState(false);
   const [submittingPayment, setSubmittingPayment] = useState(false);
