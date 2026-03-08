@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -121,13 +122,19 @@ const Orders = () => {
   // Determine which PO to show based on tab
   const selectedPOId = useMemo(() => {
     if (selectedPOTab === "active") return activePO?.id ?? null;
-    if (selectedPOTab === "all") return null;
     return selectedPOTab; // PO period id
   }, [selectedPOTab, activePO]);
 
-  // Other PO periods (not the active one)
-  const otherPOPeriods = useMemo(() => {
-    return allPOPeriods.filter(p => p.id !== activePO?.id);
+  // Only show PO periods from the current month (besides active PO)
+  const currentMonthPOPeriods = useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0-indexed
+    return allPOPeriods.filter(p => {
+      if (p.id === activePO?.id) return false; // active PO already shown separately
+      const startDate = new Date(p.start_date);
+      return startDate.getFullYear() === currentYear && startDate.getMonth() === currentMonth;
+    });
   }, [allPOPeriods, activePO]);
 
   // Payment 
@@ -384,8 +391,8 @@ const Orders = () => {
     // PO filter
     if (selectedPOTab === "active") {
       if (activePO && o.po_period_id !== activePO.id) return false;
-      if (!activePO) return false; // no active PO, show nothing in active tab
-    } else if (selectedPOTab !== "all") {
+      if (!activePO) return false;
+    } else {
       if (o.po_period_id !== selectedPOTab) return false;
     }
     if (statusFilter !== "all" && o.status !== statusFilter) return false;
@@ -1048,14 +1055,16 @@ const Orders = () => {
                 {activePO ? activePO.name : "PO Aktif"}
                 {activePO && <Badge variant="default" className="ml-2 text-[10px] px-1.5 py-0">Open</Badge>}
               </TabsTrigger>
-              {otherPOPeriods.map(po => (
+              {currentMonthPOPeriods.map(po => (
                 <TabsTrigger key={po.id} value={po.id} className="text-xs sm:text-sm">
                   {po.name}
                   <Badge variant={po.status === "open" ? "default" : "secondary"} className="ml-2 text-[10px] px-1.5 py-0">{po.status}</Badge>
                 </TabsTrigger>
               ))}
-              <TabsTrigger value="all" className="text-xs sm:text-sm">Semua Order</TabsTrigger>
             </TabsList>
+            <Link to="/dashboard/order-archive" className="text-xs text-primary hover:underline self-start ml-1">
+              📁 Lihat Arsip Order (Bulan & Tahun Sebelumnya)
+            </Link>
 
             {/* Filters row */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -1123,7 +1132,6 @@ const Orders = () => {
                   <TableHead>Total</TableHead>
                   <TableHead>Bayar</TableHead>
                   <TableHead>Pembayaran</TableHead>
-                  {selectedPOTab === "all" && <TableHead>PO</TableHead>}
                   <TableHead className="w-32">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1141,7 +1149,7 @@ const Orders = () => {
                     <TableCell>Rp {(o.total_price || 0).toLocaleString("id-ID")}</TableCell>
                     <TableCell>Rp {(o.amount_paid || 0).toLocaleString("id-ID")}</TableCell>
                     <TableCell><Badge variant={o.payment_status === "paid" ? "default" : "outline"}>{o.payment_status}</Badge></TableCell>
-                    {selectedPOTab === "all" && <TableCell className="text-xs text-muted-foreground">{getPOName(o.po_period_id)}</TableCell>}
+                    
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" className="text-primary hover:text-primary/80" onClick={() => { setSelectedOrderForPayment(o); setPaymentAmount(String((o.total_price || 0) - (o.amount_paid || 0))); setPaymentDialogOpen(true); }} title="Input Pembayaran"><Receipt className="h-4 w-4" /></Button>
@@ -1171,7 +1179,7 @@ const Orders = () => {
                   </TableRow>
                 ))}
                 {filteredOrders.length === 0 && (
-                  <TableRow><TableCell colSpan={selectedPOTab === "all" ? 11 : 10} className="text-center text-muted-foreground">Belum ada order.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">Belum ada order.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -1211,9 +1219,6 @@ const Orders = () => {
                   </div>
                 </div>
 
-                {selectedPOTab === "all" && o.po_period_id && (
-                  <Badge variant="secondary" className="text-xs">{getPOName(o.po_period_id)}</Badge>
-                )}
 
                 {(o as any).ppn_percentage > 0 && (
                   <Badge variant="secondary" className="text-xs">PPN {(o as any).ppn_percentage}%</Badge>
