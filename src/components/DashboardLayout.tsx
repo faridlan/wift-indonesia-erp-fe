@@ -2,16 +2,26 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Users, ShoppingCart, Package, CreditCard, User, LogOut, Home, UserCog, CalendarRange, BarChart, Menu, Tags, Target } from "lucide-react";
-import { cn } from "@/lib/utils";
 import {
-  Drawer,
-  DrawerTrigger,
-  DrawerContent,
-  DrawerHeader,
-  DrawerFooter,
-  DrawerClose,
-} from "@/components/ui/drawer";
+  Users, ShoppingCart, Package, CreditCard, User, LogOut, Home,
+  UserCog, CalendarRange, BarChart, Menu, Tags, Target,
+} from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarFooter,
+  SidebarHeader,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 
 const baseNavItems = [
   { to: "/dashboard", label: "Dashboard", icon: Home },
@@ -23,18 +33,21 @@ const baseNavItems = [
   { to: "/dashboard/profile", label: "Profile", icon: User },
 ];
 
-const DashboardLayout = ({ children }: { children: ReactNode }) => {
+const adminItems = [
+  { to: "/dashboard/po-periods", label: "PO Periods", icon: CalendarRange },
+  { to: "/dashboard/products", label: "Products", icon: Package },
+  { to: "/dashboard/categories", label: "Categories", icon: Tags },
+];
+
+const superadminItems = [
+  { to: "/dashboard/users", label: "Users", icon: UserCog },
+];
+
+function AppSidebar() {
   const { signOut, role } = useAuth();
   const location = useLocation();
-
-  const adminItems = [
-    { to: "/dashboard/po-periods", label: "PO Periods", icon: CalendarRange },
-    { to: "/dashboard/products", label: "Products", icon: Package },
-    { to: "/dashboard/categories", label: "Categories", icon: Tags },
-  ];
-  const superadminItems = [
-    { to: "/dashboard/users", label: "Users", icon: UserCog },
-  ];
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
 
   const navItems = [
     ...baseNavItems,
@@ -43,77 +56,71 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   ];
 
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden">
-      {/* Desktop sidebar */}
-      <aside className={cn(
-        "hidden md:flex w-64 border-r bg-sidebar-background p-4 flex-col shrink-0",
-        "h-full"
-      )}>
-        <h2 className="mb-6 text-lg font-bold tracking-wider text-sidebar-foreground">WIFT INDONESIA</h2>
-        <nav className="flex-1 space-y-1 overflow-y-auto pr-2">
-          {navItems.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                location.pathname === item.to
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent/50"
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <Button variant="ghost" onClick={signOut} className="justify-start gap-3 mt-4 shrink-0">
-          <LogOut className="h-4 w-4" />
-          Logout
-        </Button>
-      </aside>
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="p-4">
+        {!collapsed && (
+          <h2 className="text-lg font-bold tracking-wider text-sidebar-foreground">
+            WIFT INDONESIA
+          </h2>
+        )}
+      </SidebarHeader>
 
-      {/* Mobile header + drawer */}
-      <div className="md:hidden fixed inset-x-0 top-0 z-40 flex items-center justify-between gap-4 bg-background border-b p-3">
-        <div className="flex items-center gap-3">
-          <Drawer>
-            <DrawerTrigger asChild>
-              <Button variant="ghost" className="p-2">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </DrawerTrigger>
-            <DrawerContent>
-              <DrawerHeader>
-                <h3 className="text-lg font-bold">WIFT INDONESIA</h3>
-              </DrawerHeader>
-              <nav className="flex flex-col gap-2 p-4">
-                {navItems.map((item) => (
-                  <DrawerClose asChild key={item.to}>
-                    <Link to={item.to} className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/50">
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navItems.map((item) => (
+                <SidebarMenuItem key={item.to}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location.pathname === item.to}
+                    tooltip={item.label}
+                  >
+                    <Link to={item.to}>
                       <item.icon className="h-4 w-4" />
-                      {item.label}
+                      <span>{item.label}</span>
                     </Link>
-                  </DrawerClose>
-                ))}
-              </nav>
-              <DrawerFooter>
-                <Button variant="ghost" onClick={signOut} className="justify-start gap-3">
-                  <LogOut className="h-4 w-4" />
-                  Logout
-                </Button>
-                <DrawerClose asChild>
-                  <Button variant="outline" className="mt-2">Tutup</Button>
-                </DrawerClose>
-              </DrawerFooter>
-            </DrawerContent>
-          </Drawer>
-          <h2 className="text-lg font-bold tracking-wider text-sidebar-foreground">WIFT INDONESIA</h2>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter className="p-2">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={signOut} tooltip="Logout">
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
+
+const DashboardLayout = ({ children }: { children: ReactNode }) => {
+  return (
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full">
+        <AppSidebar />
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="h-12 flex items-center border-b bg-background px-4 shrink-0">
+            <SidebarTrigger />
+            <span className="ml-3 text-sm font-bold tracking-wider text-foreground md:hidden">
+              WIFT INDONESIA
+            </span>
+          </header>
+          <main className="flex-1 p-4 md:p-6 overflow-auto">
+            {children}
+          </main>
         </div>
       </div>
-
-      {/* Main content */}
-      <main className="flex-1 p-4 md:p-6 md:pt-6 pt-16 overflow-auto">{children}</main>
-    </div>
+    </SidebarProvider>
   );
 };
 
