@@ -1,0 +1,1 @@
+ALTER TABLE public.categories ADD COLUMN size_chart_url text DEFAULT NULL;
