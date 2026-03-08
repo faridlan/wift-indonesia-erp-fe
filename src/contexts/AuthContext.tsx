@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { getProfile, type Profile } from "@/services/profile";
@@ -9,7 +9,9 @@ interface AuthContextType {
   profile: Profile | null;
   role: string | null;
   loading: boolean;
+  needsSetup: boolean;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -18,7 +20,9 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   role: null,
   loading: true,
+  needsSetup: false,
   signOut: async () => {},
+  refreshProfile: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -30,15 +34,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const user = session?.user ?? null;
 
+  const fetchProfile = useCallback(async (userId: string) => {
+    try {
+      const p = await getProfile(userId);
+      setProfile(p);
+    } catch {
+      setProfile(null);
+    }
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    if (user?.id) {
+      await fetchProfile(user.id);
+    }
+  }, [user?.id, fetchProfile]);
+
   useEffect(() => {
     if (!user?.id) {
       setProfile(null);
       return;
     }
-    getProfile(user.id).then((p) => {
-      setProfile(p);
-    }).catch(() => setProfile(null));
-  }, [user?.id]);
+    fetchProfile(user.id);
+  }, [user?.id, fetchProfile]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -64,6 +81,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setProfile(null);
   };
 
+  const needsSetup = !!profile && !profile.password_changed;
+
   return (
     <AuthContext.Provider
       value={{
@@ -72,7 +91,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         profile,
         role: profile?.role ?? null,
         loading,
+        needsSetup,
         signOut,
+        refreshProfile,
       }}
     >
       {children}

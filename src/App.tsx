@@ -8,6 +8,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import SuperadminRoute from "@/components/SuperadminRoute";
 import DashboardLayout from "@/components/DashboardLayout";
 import Login from "./pages/Login";
+import FirstLoginSetup from "./pages/FirstLoginSetup";
 import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
 import Orders from "./pages/Orders";
@@ -35,6 +36,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/setup" element={<ProtectedRoute><FirstLoginSetup /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
             <Route path="/dashboard/customers" element={<ProtectedRoute><DashboardLayout><Customers /></DashboardLayout></ProtectedRoute>} />
             <Route path="/dashboard/orders" element={<ProtectedRoute><DashboardLayout><Orders /></DashboardLayout></ProtectedRoute>} />
