@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getProfile, getSalesProfiles, getAllProfiles, updateProfileFullName, updateProfileRole, type Profile, type SalesProfile } from "@/services/profile";
+import { getProfile, getSalesProfiles, getAllProfiles, updateProfileFullName, updateProfileRole, updateProfilePosition, type Profile, type SalesProfile } from "@/services/profile";
 
 const PROFILE_QUERY_KEY = ["profile"];
 const SALES_PROFILES_QUERY_KEY = ["profiles", "sales"];

@@ -58,3 +58,11 @@ export async function updateProfileRole(profileId: string, role: string): Promis
   }
 }
 
+export async function updateProfilePosition(profileId: string, position: string): Promise<void> {
+  const { error } = await supabase.from("profiles").update({ position: position || null }).eq("id", profileId);
+
+  if (error) {
+    throw error;
+  }
+}
+
