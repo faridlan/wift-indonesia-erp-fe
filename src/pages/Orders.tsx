@@ -61,9 +61,10 @@ type ItemForm = {
   product_name: string;
   quantity: string;
   price_per_unit: string;
+  work_type: string;
 };
 
-const emptyItem = (): ItemForm => ({ product_name: "", quantity: "1", price_per_unit: "" });
+const emptyItem = (): ItemForm => ({ product_name: "", quantity: "1", price_per_unit: "", work_type: "wift" });
 
 const Orders = () => {
   const { user, role } = useAuth();
@@ -87,7 +88,7 @@ const Orders = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
   const [editing, setEditing] = useState<Order | null>(null);
-  const [form, setForm] = useState({ customer_id: "", status: "pending", ppn_enabled: true, ppn_percentage: "11", ppn_custom: false, salesId: "" });
+  const [form, setForm] = useState({ customer_id: "", status: "pending", ppn_enabled: false, ppn_percentage: "11", ppn_custom: false, salesId: "", shipping_type: "cod", shipping_cost: "" });
   const [items, setItems] = useState<ItemForm[]>([emptyItem()]);
   const [submitting, setSubmitting] = useState(false);
   const [submittingPayment, setSubmittingPayment] = useState(false);
@@ -217,7 +218,7 @@ const Orders = () => {
       return;
     }
     setEditing(null);
-    setForm({ customer_id: "", status: "pending", ppn_enabled: true, ppn_percentage: "11", ppn_custom: false, salesId: "" });
+    setForm({ customer_id: "", status: "pending", ppn_enabled: false, ppn_percentage: "11", ppn_custom: false, salesId: "", shipping_type: "cod", shipping_cost: "" });
     setItems([emptyItem()]);
     setShowNewCustomer(false);
     setNewCustomerForm({ name: "", phone: "", address: "" });
@@ -236,6 +237,8 @@ const Orders = () => {
       ppn_percentage: String(pct > 0 ? pct : 11),
       ppn_custom: isCustom,
       salesId: o.sales_id ? String(o.sales_id) : "",
+      shipping_type: (o as any).shipping_type || "cod",
+      shipping_cost: String((o as any).shipping_cost || ""),
     });
     const existingItems = allOrderItems
       .filter((i) => i.order_id === o.id)
@@ -244,6 +247,7 @@ const Orders = () => {
         product_name: i.product_name,
         quantity: String(i.quantity),
         price_per_unit: String(i.price_per_unit),
+        work_type: (i as any).work_type || "wift",
       }));
     setItems(existingItems.length > 0 ? existingItems : [emptyItem()]);
     setShowNewCustomer(false);
@@ -340,6 +344,8 @@ const Orders = () => {
           customerId: form.customer_id || undefined,
           status: form.status,
           ppnPercentage: ppnValue,
+          shippingType: form.shipping_type,
+          shippingCost: form.shipping_type === "non_cod" ? (parseInt(form.shipping_cost) || 0) : 0,
         });
 
         // ... logika delete & update items ...
@@ -352,6 +358,8 @@ const Orders = () => {
           salesId,
           ppnPercentage: ppnValue,
           poPeriodId: activePO?.id,
+          shippingType: form.shipping_type,
+          shippingCost: form.shipping_type === "non_cod" ? (parseInt(form.shipping_cost) || 0) : 0,
         });
 
         // Insert Items
@@ -361,6 +369,7 @@ const Orders = () => {
             productName: item.product_name,
             quantity: parseInt(item.quantity),
             pricePerUnit: parseInt(item.price_per_unit),
+            workType: item.work_type,
           });
         }
       }
@@ -613,6 +622,38 @@ const Orders = () => {
                   </div>
                 </div>
 
+                {/* Ongkir Section */}
+                <div className="space-y-3 rounded-lg border border-border p-3">
+                  <Label className="text-sm font-medium">Ongkir (Pengiriman)</Label>
+                  <div className="flex items-center gap-3">
+                    <Badge variant={form.shipping_type === "cod" ? "default" : "outline"} className="cursor-pointer" onClick={() => setForm({ ...form, shipping_type: "cod", shipping_cost: "" })}>
+                      COD
+                    </Badge>
+                    <Badge variant={form.shipping_type === "non_cod" ? "default" : "outline"} className="cursor-pointer" onClick={() => setForm({ ...form, shipping_type: "non_cod" })}>
+                      Non COD
+                    </Badge>
+                  </div>
+                  {form.shipping_type === "non_cod" && (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Biaya Ongkir</Label>
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-2 text-[10px] font-medium text-muted-foreground">Rp</span>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          className="pl-7 h-9"
+                          value={formatRupiah(form.shipping_cost)}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/\D/g, "");
+                            setForm({ ...form, shipping_cost: raw });
+                          }}
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Inline new customer form */}
 
                 {/* PPN Section */}
@@ -734,7 +775,20 @@ const Orders = () => {
                               )}
                             </div>
 
-                            {/* 2. Qty */}
+                            {/* 2. Jenis Pengerjaan */}
+                            <div className="col-span-12 md:col-span-6 space-y-1">
+                              <Label className="text-[10px] font-medium text-muted-foreground">Pengerjaan</Label>
+                              <div className="flex items-center gap-2">
+                                <Badge variant={item.work_type === "wift" ? "default" : "outline"} className="cursor-pointer text-xs" onClick={() => updateItem(index, "work_type", "wift")}>
+                                  WIFT
+                                </Badge>
+                                <Badge variant={item.work_type === "luar" ? "default" : "outline"} className="cursor-pointer text-xs" onClick={() => updateItem(index, "work_type", "luar")}>
+                                  Luar
+                                </Badge>
+                              </div>
+                            </div>
+
+                            {/* 3. Qty */}
                             <div className="col-span-4 md:col-span-2 space-y-1">
                               <Label className={cn("text-[10px] font-medium", itemError?.quantity ? "text-destructive" : "text-muted-foreground")}>
                                 Qty

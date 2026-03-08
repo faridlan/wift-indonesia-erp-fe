@@ -9,6 +9,7 @@ export type OrderItemPayload = {
   productName: string;
   quantity: number;
   pricePerUnit: number;
+  workType?: string;
 };
 
 export type OrderItemUpdatePayload = OrderItemPayload & {
@@ -44,7 +45,8 @@ export async function createOrderItem(payload: OrderItemPayload): Promise<void> 
     product_name: payload.productName,
     quantity: payload.quantity,
     price_per_unit: payload.pricePerUnit,
-  });
+    work_type: payload.workType ?? 'wift',
+  } as any);
 
   if (error) {
     throw error;
@@ -59,7 +61,8 @@ export async function updateOrderItem(payload: OrderItemUpdatePayload): Promise<
       product_name: payload.productName,
       quantity: payload.quantity,
       price_per_unit: payload.pricePerUnit,
-    })
+      work_type: payload.workType ?? 'wift',
+    } as any)
     .eq("id", payload.id);
 
   if (error) {
@@ -74,4 +77,3 @@ export async function deleteOrderItem(id: string): Promise<void> {
     throw error;
   }
 }
-
