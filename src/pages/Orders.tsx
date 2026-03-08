@@ -1132,7 +1132,6 @@ const Orders = () => {
                   <TableHead>Total</TableHead>
                   <TableHead>Bayar</TableHead>
                   <TableHead>Pembayaran</TableHead>
-                  {selectedPOTab === "all" && <TableHead>PO</TableHead>}
                   <TableHead className="w-32">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
