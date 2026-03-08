@@ -61,9 +61,10 @@ type ItemForm = {
   product_name: string;
   quantity: string;
   price_per_unit: string;
+  work_type: string;
 };
 
-const emptyItem = (): ItemForm => ({ product_name: "", quantity: "1", price_per_unit: "" });
+const emptyItem = (): ItemForm => ({ product_name: "", quantity: "1", price_per_unit: "", work_type: "wift" });
 
 const Orders = () => {
   const { user, role } = useAuth();
