@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getProfile, getSalesProfiles, getAllProfiles, updateProfileFullName, updateProfileRole, type Profile, type SalesProfile } from "@/services/profile";
+import { getProfile, getSalesProfiles, getAllProfiles, updateProfileFullName, updateProfileRole, updateProfilePosition, type Profile, type SalesProfile } from "@/services/profile";
 
 const PROFILE_QUERY_KEY = ["profile"];
 const SALES_PROFILES_QUERY_KEY = ["profiles", "sales"];
@@ -43,6 +43,16 @@ export function useUpdateProfileRole() {
       queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ALL_PROFILES_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: SALES_PROFILES_QUERY_KEY });
+    },
+  });
+}
+
+export function useUpdateProfilePosition() {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, { profileId: string; position: string }>({
+    mutationFn: ({ profileId, position }) => updateProfilePosition(profileId, position),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ALL_PROFILES_QUERY_KEY });
     },
   });
 }
