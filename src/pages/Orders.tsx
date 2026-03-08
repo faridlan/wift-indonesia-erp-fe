@@ -882,14 +882,37 @@ const Orders = () => {
                   </TableBody>
                 </Table>
               </div>
-              <Button className="w-full mt-2" variant="outline" onClick={() => handleDownloadInvoice(detailOrder)}>
-                <FileDown className="h-4 w-4 mr-2" />Download Invoice PDF
-              </Button>
-              {detailOrder.payment_status === "paid" && (
-                <Button className="w-full mt-2" variant="outline" onClick={() => handleDownloadNota(detailOrder)}>
-                  <Receipt className="h-4 w-4 mr-2" />Download Nota Penjualan
+              <Separator />
+              <div className="flex flex-col gap-2">
+                <Button className="w-full" variant="default" onClick={() => { setDetailDialogOpen(false); setSelectedOrderForPayment(detailOrder); setPaymentAmount(String((detailOrder.total_price || 0) - (detailOrder.amount_paid || 0))); setPaymentDialogOpen(true); }}>
+                  <Receipt className="h-4 w-4 mr-2" />Input Pembayaran
                 </Button>
-              )}
+                <Button className="w-full" variant="outline" onClick={() => handleDownloadInvoice(detailOrder)}>
+                  <FileDown className="h-4 w-4 mr-2" />Download Invoice PDF
+                </Button>
+                {detailOrder.payment_status === "paid" && (
+                  <Button className="w-full" variant="outline" onClick={() => handleDownloadNota(detailOrder)}>
+                    <Receipt className="h-4 w-4 mr-2" />Download Nota Penjualan
+                  </Button>
+                )}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button className="w-full" variant="destructive">
+                      <Trash2 className="h-4 w-4 mr-2" />Hapus Order
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Hapus order?</AlertDialogTitle>
+                      <AlertDialogDescription>Data order dan semua item akan dihapus secara permanen.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Batal</AlertDialogCancel>
+                      <AlertDialogAction onClick={async () => { try { await deleteOrderMutation.mutateAsync(detailOrder.id); setDetailDialogOpen(false); toast({ title: "Berhasil", description: "Order dihapus." }); } catch (err) { toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" }); } }}>Hapus</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </div>
           )}
         </DialogContent>
