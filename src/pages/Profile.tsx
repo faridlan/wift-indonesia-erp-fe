@@ -107,7 +107,17 @@ const Profile = () => {
     setUploading(false);
   };
 
-  const setField = (key: string, value: string) => setForm((prev) => ({ ...prev, [key]: value }));
+  const setField = (key: string, value: string) => {
+    if (key === "phone_number") {
+      // Auto-replace leading "0" with "62"
+      value = value.replace(/^0/, "62");
+    }
+    if (key === "slug") {
+      // Replace spaces with "-" and remove invalid chars
+      value = value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9\-_]/g, "");
+    }
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
 
   if (loading) return <p className="text-muted-foreground p-4">Loading...</p>;
 
